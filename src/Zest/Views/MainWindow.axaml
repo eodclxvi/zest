@@ -1,0 +1,528 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Zest.ViewModels"
+        x:Class="Zest.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/zest.png"
+        Width="1280" Height="820" MinWidth="560" MinHeight="420"
+        Title="Zest">
+
+    <Window.Styles>
+        <!-- Both game lists: strip ListBox chrome and let the cards show hover/selection. -->
+        <Style Selector="ListBox.games">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.games ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.games ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.games ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.games ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox#GameGrid ListBoxItem">
+            <Setter Property="Margin" Value="6" />
+        </Style>
+
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource ContainerBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineVariantBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="RenderTransform" Value="scale(1)" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.games ListBoxItem:pointerover Border.card">
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
+            <Setter Property="RenderTransform" Value="scale(1.03)" />
+        </Style>
+        <Style Selector="ListBox.games ListBoxItem:selected Border.card">
+            <Setter Property="BorderBrush" Value="{DynamicResource CardGlowBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ContainerHighBrush}" />
+        </Style>
+        <Style Selector="Border.card.dimmed">
+            <Setter Property="Opacity" Value="0.55" />
+        </Style>
+
+        <!-- Carousel (layout-land/card_game_carousel.xml): the selected cover is full size, the rest recede. -->
+        <Style Selector="ListBox#Carousel ListBoxItem Border.card">
+            <Setter Property="RenderTransform" Value="scale(0.84)" />
+            <Setter Property="Opacity" Value="0.55" />
+            <Setter Property="CornerRadius" Value="24" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" />
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.18" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox#Carousel ListBoxItem:pointerover Border.card">
+            <Setter Property="RenderTransform" Value="scale(0.88)" />
+            <Setter Property="Opacity" Value="0.8" />
+        </Style>
+        <Style Selector="ListBox#Carousel ListBoxItem:selected Border.card">
+            <Setter Property="RenderTransform" Value="scale(1)" />
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="BorderThickness" Value="3" />
+        </Style>
+
+        <Style Selector="Button.continue">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.continue:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource ContainerBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+        </Style>
+
+        <!-- Details page stat tiles (fragment_game_info.xml). -->
+        <Style Selector="Border.tile">
+            <Setter Property="Background" Value="{DynamicResource ContainerBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineVariantBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Padding" Value="18,12" />
+            <Setter Property="MinWidth" Value="150" />
+            <Setter Property="Margin" Value="0,0,10,10" />
+        </Style>
+        <Style Selector="Border.tile TextBlock.value">
+            <Setter Property="FontFamily" Value="{StaticResource TitleFont}" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontSize" Value="22" />
+        </Style>
+    </Window.Styles>
+
+    <Panel>
+        <Border Background="{DynamicResource GlowTopLeftBrush}" />
+        <Border Background="{DynamicResource GlowBottomRightBrush}" />
+
+        <!-- Carousel: the selected cover, blurred, fills the background. -->
+        <Image Source="{Binding SelectedGame.Art}" Stretch="UniformToFill" Opacity="0.16"
+               IsVisible="{Binding IsCarouselView}" IsHitTestVisible="False">
+            <Image.Effect><BlurEffect Radius="70" /></Image.Effect>
+        </Image>
+
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" Margin="24,20,24,12">
+
+            <!-- Header -->
+            <DockPanel Grid.Row="0">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <Button Classes="round" Command="{Binding ToggleViewCommand}" ToolTip.Tip="{Binding ViewToggleTip}">
+                        <Panel>
+                            <PathIcon Data="{StaticResource IconCarousel}" Foreground="{DynamicResource SecondaryBrush}" IsVisible="{Binding IsGridView}" />
+                            <PathIcon Data="{StaticResource IconGrid}" Foreground="{DynamicResource SecondaryBrush}" IsVisible="{Binding IsCarouselView}" />
+                        </Panel>
+                    </Button>
+                    <Button Classes="round" Command="{Binding CycleSortCommand}" ToolTip.Tip="{Binding SortLabel}">
+                        <PathIcon Data="{StaticResource IconFilter}" Foreground="{DynamicResource OnSurfaceVariantBrush}" />
+                    </Button>
+                    <Button Classes="round" Command="{Binding ToggleStatsCommand}" ToolTip.Tip="Show or hide play time">
+                        <PathIcon Data="{StaticResource IconBarChart}" Foreground="{DynamicResource PrimaryBrush}" />
+                    </Button>
+                    <Button Classes="round" Command="{Binding RefreshCommand}" ToolTip.Tip="Rescan game folders (F5)">
+                        <PathIcon Data="{StaticResource IconRefresh}" Foreground="{DynamicResource SecondaryBrush}" />
+                    </Button>
+                    <Button Classes="round" Click="OnSettingsClick" ToolTip.Tip="Settings">
+                        <PathIcon Data="{StaticResource IconSettings}" Foreground="{DynamicResource TertiaryBrush}" />
+                    </Button>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Image Source="/Assets/zest.png" Width="34" Height="34" />
+                    <TextBlock Classes="title" Text="Zest" FontSize="30" VerticalAlignment="Center" />
+                </StackPanel>
+            </DockPanel>
+
+            <!-- Search pill -->
+            <Border Grid.Row="1" Margin="0,18,0,0" Height="48" CornerRadius="24"
+                    BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1" Background="{DynamicResource SearchFillBrush}">
+                <DockPanel Margin="18,0,12,0">
+                    <PathIcon DockPanel.Dock="Left" Data="{StaticResource IconSearch}" Width="20" Height="20"
+                              Foreground="{DynamicResource SecondaryBrush}" />
+                    <Button DockPanel.Dock="Right" Classes="round" Width="30" Height="30" BorderThickness="0"
+                            Click="OnClearSearch" IsVisible="{Binding SearchText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <PathIcon Data="{StaticResource IconClear}" Width="14" Height="14" Foreground="{DynamicResource OnSurfaceVariantBrush}" />
+                    </Button>
+                    <TextBox x:Name="SearchBox" Text="{Binding SearchText}" PlaceholderText="Search games  (Ctrl+F)"
+                             Background="Transparent" BorderThickness="0" Margin="10,0,0,0"
+                             VerticalContentAlignment="Center" FontSize="15" />
+                </DockPanel>
+            </Border>
+
+            <!-- Platform chips -->
+            <ItemsControl Grid.Row="2" Margin="0,14,0,0" ItemsSource="{Binding Chips}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="8" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PlatformChip">
+                        <Button Classes="chip" Classes.selected="{Binding IsSelected}" IsVisible="{Binding IsShown}"
+                                Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).SelectPlatformCommand}"
+                                CommandParameter="{Binding}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="{StaticResource IconHide}" Width="14" Height="14" IsVisible="{Binding IsHiddenChip}" />
+                                <TextBlock Text="{Binding Label}" />
+                                <TextBlock Text="{Binding Count}" Opacity="0.6" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Continue playing (card_continue_playing) -->
+            <Button Grid.Row="3" Classes="continue" Margin="0,14,0,0" MaxWidth="520" HorizontalAlignment="Left"
+                    IsVisible="{Binding HasContinueGame}"
+                    Command="{Binding LaunchCommand}" CommandParameter="{Binding ContinueGame}">
+                <DockPanel>
+                    <PathIcon DockPanel.Dock="Right" Data="{StaticResource IconPlay}" Width="24" Height="24"
+                              Foreground="{DynamicResource PrimaryBrush}" Margin="12,0,6,0" />
+                    <Border DockPanel.Dock="Left" Width="44" Height="44" CornerRadius="12" ClipToBounds="True"
+                            Background="{DynamicResource ContainerHighBrush}">
+                        <Image Source="{Binding ContinueGame.Art}" Stretch="UniformToFill" />
+                    </Border>
+                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center" Spacing="1">
+                        <TextBlock Classes="muted" FontSize="11" Text="Continue playing" />
+                        <TextBlock FontWeight="Bold" FontSize="14" Text="{Binding ContinueGame.Title}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </DockPanel>
+            </Button>
+
+            <Panel Grid.Row="4" Margin="-6,12,-6,0">
+                <!-- Grid view -->
+                <ListBox x:Name="GameGrid" Classes="games" ItemsSource="{Binding Games}" SelectedItem="{Binding SelectedGame}"
+                         IsVisible="{Binding IsGridView}" SelectionMode="Single" DoubleTapped="OnGameDoubleTapped"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:GameViewModel">
+                            <Border Classes="card" Classes.dimmed="{Binding IsHidden}" Width="178" Padding="6,6,6,8">
+                                <Border.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Play" Click="OnMenuPlay">
+                                            <MenuItem.Icon><PathIcon Data="{StaticResource IconPlay}" /></MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Details" Click="OnMenuDetails">
+                                            <MenuItem.Icon><PathIcon Data="{StaticResource IconInfo}" /></MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Show in file manager" Click="OnMenuShowFile">
+                                            <MenuItem.Icon><PathIcon Data="{StaticResource IconFolder}" /></MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Fetch art again" Click="OnMenuRefetchArt">
+                                            <MenuItem.Icon><PathIcon Data="{StaticResource IconRefresh}" /></MenuItem.Icon>
+                                        </MenuItem>
+                                        <Separator />
+                                        <MenuItem Header="{Binding HideActionText}" Click="OnMenuToggleHidden">
+                                            <MenuItem.Icon><PathIcon Data="{StaticResource IconHide}" /></MenuItem.Icon>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </Border.ContextMenu>
+                                <StackPanel Spacing="6">
+                                    <Panel Width="162" Height="162">
+                                        <Border CornerRadius="13" ClipToBounds="True" Background="{DynamicResource ContainerHighestBrush}">
+                                            <Panel>
+                                                <TextBlock Classes="title" Text="{Binding Initials}" FontSize="44"
+                                                           Foreground="{DynamicResource OutlineBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                           IsVisible="{Binding !HasArt}" />
+                                                <!-- Portrait boxart: blurred fill behind, whole cover in front. -->
+                                                <Image Source="{Binding Art}" Stretch="UniformToFill" Opacity="0.55">
+                                                    <Image.Effect><BlurEffect Radius="22" /></Image.Effect>
+                                                </Image>
+                                                <Image Source="{Binding Art}" Stretch="Uniform" />
+                                            </Panel>
+                                        </Border>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="7">
+                                            <Border Classes="badge"><TextBlock Text="{Binding PlatformShort}" /></Border>
+                                            <Border Classes="badge" IsVisible="{Binding IsInstalled}"><TextBlock Text="INSTALLED" /></Border>
+                                        </StackPanel>
+                                        <Border Classes="badge filled" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="7"
+                                                IsVisible="{Binding IsRunning}">
+                                            <TextBlock Text="PLAYING" />
+                                        </Border>
+                                    </Panel>
+                                    <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="Bold"
+                                               TextAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding Title}" />
+                                    <TextBlock Text="{Binding StatsText}" FontSize="11" Classes="muted"
+                                               TextAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               IsVisible="{Binding ShowStats}" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- Carousel view -->
+                <Grid IsVisible="{Binding IsCarouselView}" RowDefinitions="*,Auto">
+                    <ListBox x:Name="Carousel" Classes="games" ItemsSource="{Binding Games}" SelectedItem="{Binding SelectedGame}"
+                             SelectionMode="Single" AutoScrollToSelectedItem="False" DoubleTapped="OnGameDoubleTapped"
+                             VerticalAlignment="Center"
+                             ScrollViewer.HorizontalScrollBarVisibility="Hidden" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="6" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:GameViewModel">
+                                <Border Classes="card" Width="300" Height="380" Padding="7">
+                                    <Border.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Play" Click="OnMenuPlay">
+                                                <MenuItem.Icon><PathIcon Data="{StaticResource IconPlay}" /></MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Details" Click="OnMenuDetails">
+                                                <MenuItem.Icon><PathIcon Data="{StaticResource IconInfo}" /></MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Show in file manager" Click="OnMenuShowFile">
+                                                <MenuItem.Icon><PathIcon Data="{StaticResource IconFolder}" /></MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Fetch art again" Click="OnMenuRefetchArt">
+                                                <MenuItem.Icon><PathIcon Data="{StaticResource IconRefresh}" /></MenuItem.Icon>
+                                            </MenuItem>
+                                            <Separator />
+                                            <MenuItem Header="{Binding HideActionText}" Click="OnMenuToggleHidden">
+                                                <MenuItem.Icon><PathIcon Data="{StaticResource IconHide}" /></MenuItem.Icon>
+                                            </MenuItem>
+                                        </ContextMenu>
+                                    </Border.ContextMenu>
+                                    <Panel>
+                                        <Border CornerRadius="18" ClipToBounds="True" Background="{DynamicResource ContainerHighestBrush}">
+                                            <Panel>
+                                                <TextBlock Classes="title" Text="{Binding Initials}" FontSize="72"
+                                                           Foreground="{DynamicResource OutlineBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                           IsVisible="{Binding !HasArt}" />
+                                                <Image Source="{Binding Art}" Stretch="UniformToFill" Opacity="0.6">
+                                                    <Image.Effect><BlurEffect Radius="30" /></Image.Effect>
+                                                </Image>
+                                                <Image Source="{Binding Art}" Stretch="Uniform" />
+                                            </Panel>
+                                        </Border>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
+                                            <Border Classes="badge"><TextBlock Text="{Binding PlatformShort}" /></Border>
+                                            <Border Classes="badge" IsVisible="{Binding IsInstalled}"><TextBlock Text="INSTALLED" /></Border>
+                                        </StackPanel>
+                                        <Border Classes="badge filled" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10"
+                                                IsVisible="{Binding IsRunning}">
+                                            <TextBlock Text="PLAYING" />
+                                        </Border>
+                                    </Panel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <StackPanel Grid.Row="1" HorizontalAlignment="Center" Spacing="6" Margin="24,10,24,6"
+                                IsVisible="{Binding SelectedGame, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <TextBlock Classes="title" FontSize="28" Text="{Binding SelectedGame.Title}"
+                                   TextAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                            <TextBlock Classes="muted" Text="{Binding SelectedGame.SystemName}" />
+                            <TextBlock Classes="muted" Text="·" />
+                            <TextBlock Classes="muted" Text="{Binding SelectedGame.StatsText}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" Margin="0,8,0,0">
+                            <Button Classes="primary" Command="{Binding LaunchCommand}" CommandParameter="{Binding SelectedGame}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource IconPlay}" Width="16" Height="16" />
+                                    <TextBlock Text="Play" />
+                                </StackPanel>
+                            </Button>
+                            <Button Classes="outlined" Command="{Binding OpenDetailsCommand}" CommandParameter="{Binding SelectedGame}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource IconInfo}" Width="16" Height="16" />
+                                    <TextBlock Text="Details" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14">
+                    <TextBlock Classes="title" FontSize="22" Text="No games here yet" HorizontalAlignment="Center" />
+                    <TextBlock Classes="muted" Text="Add your game folders in Settings, or clear the search." HorizontalAlignment="Center" />
+                    <Button Classes="primary" HorizontalAlignment="Center" Click="OnSettingsClick" Content="Open Settings" />
+                </StackPanel>
+            </Panel>
+
+            <!-- Bottom bar: controller hints, status, Play -->
+            <DockPanel Grid.Row="5" Margin="0,8,0,0">
+                <Button DockPanel.Dock="Right" Classes="primary" Command="{Binding LaunchCommand}"
+                        CommandParameter="{Binding SelectedGame}" IsVisible="{Binding IsGridView}"
+                        IsEnabled="{Binding SelectedGame, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconPlay}" Width="16" Height="16" />
+                        <TextBlock Text="Play" />
+                    </StackPanel>
+                </Button>
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="7" Margin="0,0,18,0"
+                            IsVisible="{Binding Controller.IsConnected}" VerticalAlignment="Center"
+                            ToolTip.Tip="{Binding Controller.Name}">
+                    <PathIcon Data="{StaticResource IconGamepad}" Width="20" Height="20" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,4,0" />
+                    <Border Classes="hint"><TextBlock Text="{Binding Controller.Confirm}" /></Border>
+                    <TextBlock Classes="muted" FontSize="12" Text="Play" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <Border Classes="hint"><TextBlock Text="{Binding Controller.North}" /></Border>
+                    <TextBlock Classes="muted" FontSize="12" Text="Details" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <Border Classes="hint"><TextBlock Text="{Binding Controller.West}" /></Border>
+                    <TextBlock Classes="muted" FontSize="12" Text="View" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <Border Classes="hint wide"><TextBlock Text="LB/RB" /></Border>
+                    <TextBlock Classes="muted" FontSize="12" Text="System" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <Border Classes="hint wide"><TextBlock Text="Select" /></Border>
+                    <TextBlock Classes="muted" FontSize="12" Text="Sort" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Classes="muted" FontSize="12" Text="{Binding Status}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+        </Grid>
+
+        <!-- Details page (fragment_game_info.xml) -->
+        <Panel IsVisible="{Binding IsDetailsOpen}">
+            <Border Background="{DynamicResource BackgroundBrush}" />
+            <Image Source="{Binding DetailsGame.Art}" Stretch="UniformToFill" Opacity="0.2" IsHitTestVisible="False">
+                <Image.Effect><BlurEffect Radius="80" /></Image.Effect>
+            </Image>
+            <Border Background="{DynamicResource GlowBottomRightBrush}" />
+
+            <DockPanel Margin="32,24,32,16">
+                <DockPanel DockPanel.Dock="Top">
+                    <Button Classes="outlined" Command="{Binding CloseDetailsCommand}" ToolTip.Tip="Back (Esc)">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconBack}" Width="16" Height="16" />
+                            <TextBlock Text="Back" />
+                        </StackPanel>
+                    </Button>
+                </DockPanel>
+
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="7" Margin="0,10,0,0"
+                            IsVisible="{Binding Controller.IsConnected}">
+                    <PathIcon Data="{StaticResource IconGamepad}" Width="20" Height="20" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,4,0" />
+                    <Border Classes="hint"><TextBlock Text="{Binding Controller.Confirm}" /></Border>
+                    <TextBlock Classes="muted" FontSize="12" Text="Play" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <Border Classes="hint"><TextBlock Text="{Binding Controller.Back}" /></Border>
+                    <TextBlock Classes="muted" FontSize="12" Text="Back" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <Border Classes="hint"><TextBlock Text="{Binding Controller.West}" /></Border>
+                    <TextBlock Classes="muted" FontSize="12" Text="{Binding DetailsGame.HideActionText}" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <ScrollViewer Margin="0,20,0,0" HorizontalScrollBarVisibility="Disabled">
+                    <WrapPanel Orientation="Horizontal">
+                        <!-- Cover -->
+                        <Border Width="340" Height="340" CornerRadius="26" ClipToBounds="True" Margin="0,0,40,24"
+                                Background="{DynamicResource ContainerHighestBrush}" VerticalAlignment="Top"
+                                BorderBrush="{DynamicResource CardGlowBrush}" BorderThickness="3">
+                            <Panel>
+                                <TextBlock Classes="title" Text="{Binding DetailsGame.Initials}" FontSize="96"
+                                           Foreground="{DynamicResource OutlineBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           IsVisible="{Binding !DetailsGame.HasArt}" />
+                                <Image Source="{Binding DetailsGame.Art}" Stretch="UniformToFill" Opacity="0.6">
+                                    <Image.Effect><BlurEffect Radius="30" /></Image.Effect>
+                                </Image>
+                                <Image Source="{Binding DetailsGame.Art}" Stretch="Uniform" />
+                            </Panel>
+                        </Border>
+
+                        <!-- Info -->
+                        <StackPanel Spacing="14" Width="{Binding $parent[ScrollViewer].Bounds.Width, Converter={x:Static vm:Converters.DetailsInfoWidth}}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Classes="badge"><TextBlock Text="{Binding DetailsGame.SystemName}" /></Border>
+                                <Border Classes="badge"><TextBlock Text="{Binding DetailsGame.EmulatorName}" /></Border>
+                                <Border Classes="badge filled" IsVisible="{Binding DetailsGame.IsInstalled}"><TextBlock Text="INSTALLED IN AZAHAR" /></Border>
+                                <Border Classes="badge filled" IsVisible="{Binding DetailsGame.IsHidden}"><TextBlock Text="HIDDEN" /></Border>
+                                <Border Classes="badge filled" IsVisible="{Binding DetailsGame.IsRunning}"><TextBlock Text="PLAYING" /></Border>
+                            </StackPanel>
+
+                            <TextBlock Classes="title" FontSize="40" Text="{Binding DetailsGame.Title}" TextWrapping="Wrap" />
+
+                            <WrapPanel>
+                                <Border Classes="tile">
+                                    <StackPanel>
+                                        <TextBlock Classes="value" Text="{Binding DetailsGame.PlayTimeText}" />
+                                        <TextBlock Classes="muted" FontSize="12" Text="Play time" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="tile">
+                                    <StackPanel>
+                                        <TextBlock Classes="value" Text="{Binding DetailsGame.LastPlayedText}" />
+                                        <TextBlock Classes="muted" FontSize="12" Text="Last played" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="tile">
+                                    <StackPanel>
+                                        <TextBlock Classes="value" Text="{Binding DetailsGame.LaunchesText}" />
+                                        <TextBlock Classes="muted" FontSize="12" Text="Times launched" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="tile">
+                                    <StackPanel>
+                                        <TextBlock Classes="value" Text="{Binding DetailsGame.SizeText}" />
+                                        <TextBlock Classes="muted" FontSize="12" Text="{Binding DetailsGame.FormatText}" />
+                                    </StackPanel>
+                                </Border>
+                            </WrapPanel>
+
+                            <WrapPanel>
+                                <Button x:Name="DetailsPlay" Classes="primary" Margin="0,0,10,10" Padding="26,11"
+                                        Command="{Binding LaunchCommand}" CommandParameter="{Binding DetailsGame}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconPlay}" Width="18" Height="18" />
+                                        <TextBlock Text="Play" FontSize="15" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="outlined" Margin="0,0,10,10" Click="OnDetailsShowFile">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconFolder}" Width="16" Height="16" />
+                                        <TextBlock Text="Show file" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="outlined" Margin="0,0,10,10"
+                                        Command="{Binding RefetchArtCommand}" CommandParameter="{Binding DetailsGame}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16" />
+                                        <TextBlock Text="Fetch art again" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="outlined" Margin="0,0,10,10"
+                                        Command="{Binding ToggleHiddenCommand}" CommandParameter="{Binding DetailsGame}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconHide}" Width="16" Height="16" />
+                                        <TextBlock Text="{Binding DetailsGame.HideActionText}" />
+                                    </StackPanel>
+                                </Button>
+                            </WrapPanel>
+
+                            <Border Background="{DynamicResource ContainerBrush}" CornerRadius="18" Padding="18,14"
+                                    BorderBrush="{DynamicResource OutlineVariantBrush}" BorderThickness="1">
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="18" RowSpacing="8">
+                                    <TextBlock Classes="muted" FontSize="12" Text="File" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding DetailsGame.FileName}" FontFamily="monospace" FontSize="12" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="1" Classes="muted" FontSize="12" Text="Location" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DetailsGame.Location}" FontFamily="monospace" FontSize="12" TextWrapping="Wrap" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </WrapPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Panel>
+    </Panel>
+</Window>

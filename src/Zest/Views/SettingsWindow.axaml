@@ -1,0 +1,155 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Zest.ViewModels"
+        x:Class="Zest.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Icon="/Assets/zest.png"
+        Width="780" Height="820" MinWidth="520" MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        Title="Zest Settings">
+
+    <Window.Styles>
+        <Style Selector="Border.section">
+            <Setter Property="Background" Value="{DynamicResource ContainerBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineVariantBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Padding" Value="18,14" />
+        </Style>
+
+        <!-- Theme swatches: the theme's primary on its own background, ringed when chosen. -->
+        <Style Selector="Button.swatch">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="Margin" Value="0,0,10,10" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.swatch:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource ContainerHighBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
+        </Style>
+        <Style Selector="Button.swatch.selected">
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+        </Style>
+        <Style Selector="Button.swatch.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <DockPanel Margin="24,20,24,18">
+        <TextBlock DockPanel.Dock="Top" Classes="title" FontSize="26" Text="Settings" />
+
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
+            <Button DockPanel.Dock="Left" Classes="outlined" Content="Detect from emulators"
+                    Command="{Binding DetectAgainCommand}"
+                    ToolTip.Tip="Reload commands and folders from Eden, Azahar and PCSX2's own settings" />
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                <Button Classes="outlined" Content="Cancel" Click="OnCancel" />
+                <Button Classes="primary" Content="Save" Click="OnSave" />
+            </StackPanel>
+        </DockPanel>
+
+        <ScrollViewer Margin="0,14,0,0">
+            <StackPanel Spacing="14">
+                <Border Classes="section">
+                    <StackPanel Spacing="10">
+                        <TextBlock Classes="title" FontSize="18" Text="Theme" />
+                        <TextBlock Classes="muted" FontSize="12" Text="Lemon's color themes. Click one to preview it; Save keeps it." />
+                        <ItemsControl ItemsSource="{Binding Themes}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ThemeOption">
+                                    <Button Classes="swatch" Classes.selected="{Binding IsSelected}" ToolTip.Tip="{Binding Name}"
+                                            Command="{Binding $parent[ItemsControl].((vm:SettingsViewModel)DataContext).SelectThemeCommand}"
+                                            CommandParameter="{Binding}">
+                                        <StackPanel Spacing="6" Width="62">
+                                            <Border Width="48" Height="48" CornerRadius="24" Background="{Binding SwatchBackground}"
+                                                    BorderBrush="{DynamicResource OutlineVariantBrush}" BorderThickness="1" HorizontalAlignment="Center">
+                                                <Ellipse Width="28" Height="28" Fill="{Binding Swatch}" />
+                                            </Border>
+                                            <TextBlock Text="{Binding Name}" FontSize="12" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <ItemsControl ItemsSource="{Binding Emulators}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Spacing="14" /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:EmulatorSettingsViewModel">
+                            <Border Classes="section">
+                                <StackPanel Spacing="8">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Classes="title" FontSize="18" Text="{Binding SystemName}" />
+                                        <TextBlock Classes="muted" Text="{Binding EmulatorName}" VerticalAlignment="Bottom" Margin="0,0,0,2" />
+                                    </StackPanel>
+
+                                    <TextBlock Classes="muted" FontSize="12" Text="Launch command  ({rom} is replaced by the game file)" />
+                                    <TextBox Text="{Binding Command}" FontFamily="monospace" FontSize="13" />
+
+                                    <CheckBox IsChecked="{Binding IncludeInstalled}" IsVisible="{Binding SupportsInstalled}" Margin="0,4,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Include titles installed in Azahar" />
+                                            <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                                                       Text="Games installed from .cia files. Hide any that duplicate a game file (right-click → Hide)." />
+                                        </StackPanel>
+                                    </CheckBox>
+
+                                    <DockPanel Margin="0,6,0,0">
+                                        <Button DockPanel.Dock="Right" Classes="outlined" Padding="12,4" Click="OnAddFolder">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <PathIcon Data="{StaticResource IconAdd}" Width="14" Height="14" />
+                                                <TextBlock Text="Add folder" />
+                                            </StackPanel>
+                                        </Button>
+                                        <TextBlock Classes="muted" FontSize="12" Text="Game folders (searched with subfolders)" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                    <TextBlock Classes="muted" FontSize="12" FontStyle="Italic" Text="No folders yet."
+                                               IsVisible="{Binding !Folders.Count}" />
+                                    <ItemsControl ItemsSource="{Binding Folders}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <DockPanel Margin="0,2">
+                                                    <Button DockPanel.Dock="Right" Classes="round" Width="28" Height="28" BorderThickness="0"
+                                                            ToolTip.Tip="Remove"
+                                                            Command="{Binding $parent[ItemsControl].((vm:EmulatorSettingsViewModel)DataContext).RemoveFolderCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <PathIcon Data="{StaticResource IconClear}" Width="12" Height="12" />
+                                                    </Button>
+                                                    <PathIcon Data="{StaticResource IconFolder}" Width="16" Height="16" Margin="0,0,10,0"
+                                                              Foreground="{DynamicResource PrimaryBrush}" />
+                                                    <TextBlock Text="{Binding}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Border Classes="section">
+                    <StackPanel Spacing="8">
+                        <TextBlock Classes="title" FontSize="18" Text="Switch keys" />
+                        <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                                   Text="Used only to read each Switch game's real title and icon. Nothing leaves this computer." />
+                        <TextBlock Classes="muted" FontSize="12" Text="prod.keys" />
+                        <TextBox Text="{Binding ProdKeys}" FontFamily="monospace" FontSize="13" />
+                        <TextBlock Classes="muted" FontSize="12" Text="title.keys (optional)" />
+                        <TextBox Text="{Binding TitleKeys}" FontFamily="monospace" FontSize="13" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>
