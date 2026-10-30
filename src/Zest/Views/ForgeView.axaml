@@ -1,0 +1,299 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Zest.ViewModels"
+             xmlns:forge="using:Zest.Services.Forge"
+             x:Class="Zest.Views.ForgeView"
+             x:DataType="vm:ForgeViewModel">
+
+    <UserControl.Styles>
+        <!-- Box slot tiles: name + species, a star for shiny, a red dot when not legal. -->
+        <Style Selector="Button.slot">
+            <Setter Property="Height" Value="62" />
+            <Setter Property="Margin" Value="3" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="{DynamicResource ContainerHighBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineVariantBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="Button.slot.empty">
+            <Setter Property="Background" Value="{DynamicResource ContainerBrush}" />
+            <Setter Property="Opacity" Value="0.55" />
+        </Style>
+        <Style Selector="Button.slot.selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="Button.slot:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource ContainerHighestBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
+        </Style>
+        <Style Selector="Border.panel">
+            <Setter Property="Background" Value="{DynamicResource ContainerBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineVariantBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="16" />
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="{DynamicResource OnSurfaceVariantBrush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="ComboBox, NumericUpDown, TextBox">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="MinHeight" Value="30" />
+        </Style>
+    </UserControl.Styles>
+
+    <UserControl.DataTemplates>
+        <DataTemplate DataType="vm:SlotTile">
+            <Button Classes="slot" Classes.empty="{Binding IsEmpty}" Classes.selected="{Binding IsSelected}"
+                    Command="{Binding $parent[UserControl].((vm:ForgeViewModel)DataContext).SelectSlotCommand}"
+                    CommandParameter="{Binding}">
+                <Grid RowDefinitions="*,Auto" ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3" VerticalAlignment="Top">
+                        <TextBlock Text="★" FontSize="12" Foreground="{DynamicResource PrimaryBrush}" IsVisible="{Binding IsShiny}" />
+                        <Ellipse Width="8" Height="8" Fill="#E5534B" IsVisible="{Binding ShowIllegal}"
+                                 ToolTip.Tip="Not legal" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="muted" FontSize="11"
+                               Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+                </Grid>
+            </Button>
+        </DataTemplate>
+    </UserControl.DataTemplates>
+
+    <DockPanel>
+        <!-- Header: tabs + status -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,14">
+            <Button Classes="chip" Classes.selected="{Binding IsSaveTab}" Command="{Binding SetTabCommand}" CommandParameter="Save" Content="Save" />
+            <Button Classes="chip" Classes.selected="{Binding IsBankTab}" Command="{Binding SetTabCommand}" CommandParameter="Bank" Content="Bank" />
+            <Button Classes="chip" Classes.selected="{Binding IsBackupsTab}" Command="{Binding SetTabCommand}" CommandParameter="Backups" Content="Restore points" />
+            <ProgressBar IsIndeterminate="True" Width="80" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" Margin="10,0,0,0" />
+        </StackPanel>
+
+        <Border DockPanel.Dock="Bottom" Margin="0,12,0,0" IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                Background="{DynamicResource ContainerHighBrush}" CornerRadius="12" Padding="14,9">
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+        </Border>
+
+        <Grid ColumnDefinitions="250,*,360" ColumnSpacing="16">
+            <!-- Saves found in Eden / Azahar -->
+            <Border Classes="panel">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Classes="title" FontSize="18" Text="Your saves" Margin="0,0,0,10" />
+                    <ScrollViewer>
+                        <ItemsControl ItemsSource="{Binding Saves}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="forge:PokemonSave">
+                                    <Button Classes="outlined" Margin="0,0,0,8" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                            Click="OnSaveClick" Tag="{Binding}">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{Binding Label}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Classes="muted" FontSize="11" Text="{Binding Description.TrainerName, StringFormat='Trainer {0}'}" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <!-- Middle: boxes / bank / restore points -->
+            <Border Grid.Column="1" Classes="panel">
+                <Panel>
+                    <!-- Save boxes -->
+                    <DockPanel IsVisible="{Binding IsSaveTab}">
+                        <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,10">
+                            <TextBlock Classes="title" FontSize="22" Text="{Binding SaveTitle}" />
+                            <TextBlock Classes="muted" FontSize="12" Text="{Binding SaveFacts}" />
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Top" IsVisible="{Binding HasSave}">
+                            <TextBlock Classes="label" Text="PARTY" Margin="3,0,0,2" />
+                            <ItemsControl ItemsSource="{Binding Party}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><UniformGrid Columns="6" /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                            <DockPanel Margin="0,12,0,4">
+                                <Button DockPanel.Dock="Left" Classes="round" Width="34" Height="34" Command="{Binding PrevBoxCommand}" ToolTip.Tip="Previous box (LB)">
+                                    <PathIcon Data="{StaticResource IconBack}" Width="14" Height="14" />
+                                </Button>
+                                <Button DockPanel.Dock="Right" Classes="round" Width="34" Height="34" Command="{Binding NextBoxCommand}" ToolTip.Tip="Next box (RB)">
+                                    <PathIcon Data="{StaticResource IconBack}" Width="14" Height="14" RenderTransform="rotate(180deg)" />
+                                </Button>
+                                <TextBlock Classes="title" FontSize="16" Text="{Binding BoxTitle}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </StackPanel>
+                        <ScrollViewer IsVisible="{Binding HasSave}">
+                            <ItemsControl ItemsSource="{Binding BoxSlots}" VerticalAlignment="Top">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><UniformGrid Columns="6" /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+
+                    <!-- Bank -->
+                    <DockPanel IsVisible="{Binding IsBankTab}">
+                        <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,10">
+                            <TextBlock Classes="title" FontSize="22" Text="Bank" />
+                            <TextBlock Classes="muted" FontSize="12" Text="Storage shared by every game. Move Pokémon in from one save, out to another." TextWrapping="Wrap" />
+                        </StackPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                            <Button DockPanel.Dock="Left" Classes="round" Width="34" Height="34" Command="{Binding PrevBoxCommand}">
+                                <PathIcon Data="{StaticResource IconBack}" Width="14" Height="14" />
+                            </Button>
+                            <Button DockPanel.Dock="Right" Classes="round" Width="34" Height="34" Command="{Binding AddBankBoxCommand}" ToolTip.Tip="Add a box" Margin="6,0,0,0">
+                                <PathIcon Data="{StaticResource IconAdd}" Width="14" Height="14" />
+                            </Button>
+                            <Button DockPanel.Dock="Right" Classes="round" Width="34" Height="34" Command="{Binding NextBoxCommand}">
+                                <PathIcon Data="{StaticResource IconBack}" Width="14" Height="14" RenderTransform="rotate(180deg)" />
+                            </Button>
+                            <TextBlock Classes="title" FontSize="16" Text="{Binding BankBoxTitle}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <ScrollViewer>
+                            <ItemsControl ItemsSource="{Binding BankSlots}" VerticalAlignment="Top">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><UniformGrid Columns="6" /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+
+                    <!-- Restore points -->
+                    <DockPanel IsVisible="{Binding IsBackupsTab}">
+                        <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,10">
+                            <TextBlock Classes="title" FontSize="22" Text="Restore points" />
+                            <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                                       Text="Made before every change to this save. The 20 newest are kept. Restoring makes a restore point too, so it can be undone." />
+                        </StackPanel>
+                        <TextBlock DockPanel.Dock="Top" Classes="muted" Text="No restore points for this save yet."
+                                   IsVisible="{Binding !RestorePoints.Count}" />
+                        <ScrollViewer>
+                            <ItemsControl ItemsSource="{Binding RestorePoints}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="vm:BackupRow">
+                                        <Border Background="{DynamicResource ContainerHighBrush}" CornerRadius="12" Padding="14,8" Margin="0,0,0,6">
+                                            <DockPanel>
+                                                <Button DockPanel.Dock="Right" Classes="outlined" Content="Restore"
+                                                        Command="{Binding $parent[UserControl].((vm:ForgeViewModel)DataContext).RestoreCommand}"
+                                                        CommandParameter="{Binding}" />
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding What}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Classes="muted" FontSize="11" Text="{Binding When}" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Panel>
+            </Border>
+
+            <!-- Right: editor / bank entry -->
+            <Border Grid.Column="2" Classes="panel">
+                <Panel>
+                    <ScrollViewer IsVisible="{Binding IsSaveTab}">
+                        <StackPanel Spacing="10">
+                            <TextBlock Classes="title" FontSize="18" Text="{Binding SelectedHeader}" TextWrapping="Wrap" />
+                            <StackPanel Spacing="10" IsVisible="{Binding HasSelection}">
+                                <Border CornerRadius="10" Padding="10,6" Background="{DynamicResource ContainerHighBrush}">
+                                    <StackPanel Spacing="2">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Ellipse Width="9" Height="9" Fill="#3FB950" IsVisible="{Binding SelectedIsLegal}" />
+                                            <Ellipse Width="9" Height="9" Fill="#E5534B" IsVisible="{Binding !SelectedIsLegal}" />
+                                            <TextBlock FontWeight="SemiBold" FontSize="12" Text="Legality" />
+                                        </StackPanel>
+                                        <ItemsControl ItemsSource="{Binding LegalityLines}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <TextBlock Classes="muted" FontSize="11" Text="{Binding}" TextWrapping="Wrap" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+
+                                <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+                                    <TextBlock Classes="label" Text="Nickname" />
+                                    <TextBox Grid.Column="1" Text="{Binding EditNickname}" MaxLength="12" />
+                                    <TextBlock Grid.Row="1" Classes="label" Text="Level" />
+                                    <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding EditLevel}" Minimum="1" Maximum="100" FormatString="0" />
+                                    <TextBlock Grid.Row="2" Classes="label" Text="Nature" />
+                                    <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding NatureNames}" SelectedIndex="{Binding EditNature}" />
+                                    <TextBlock Grid.Row="3" Classes="label" Text="Ability" />
+                                    <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Abilities}" SelectedItem="{Binding EditAbility}" />
+                                    <TextBlock Grid.Row="4" Classes="label" Text="Held item" />
+                                    <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding ItemNames}" SelectedIndex="{Binding EditItem}" MaxDropDownHeight="360" />
+                                    <TextBlock Grid.Row="5" Classes="label" Text="Ball" />
+                                    <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding BallNames}" SelectedIndex="{Binding EditBall}" MaxDropDownHeight="360" />
+                                    <TextBlock Grid.Row="6" Classes="label" Text="Trainer (OT)" />
+                                    <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding EditOt}" MaxLength="12" />
+                                    <TextBlock Grid.Row="7" Classes="label" Text="Friendship" />
+                                    <NumericUpDown Grid.Row="7" Grid.Column="1" Value="{Binding EditFriendship}" Minimum="0" Maximum="255" FormatString="0" />
+                                </Grid>
+                                <CheckBox Content="Shiny" IsChecked="{Binding EditShiny}" />
+
+                                <TextBlock Classes="label" Text="MOVES" />
+                                <ComboBox ItemsSource="{Binding MoveNames}" SelectedIndex="{Binding EditMove1}" MaxDropDownHeight="360" />
+                                <ComboBox ItemsSource="{Binding MoveNames}" SelectedIndex="{Binding EditMove2}" MaxDropDownHeight="360" />
+                                <ComboBox ItemsSource="{Binding MoveNames}" SelectedIndex="{Binding EditMove3}" MaxDropDownHeight="360" />
+                                <ComboBox ItemsSource="{Binding MoveNames}" SelectedIndex="{Binding EditMove4}" MaxDropDownHeight="360" />
+
+                                <Grid ColumnDefinitions="*,80,80" ColumnSpacing="6">
+                                    <TextBlock Classes="label" Text="STATS" />
+                                    <TextBlock Grid.Column="1" Classes="label" Text="{Binding IvMax, StringFormat='IV ≤ {0:0}'}" />
+                                    <TextBlock Grid.Column="2" Classes="label" Text="{Binding EvMax, StringFormat='EV ≤ {0:0}'}" />
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding Stats}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="vm:StatRow">
+                                            <Grid ColumnDefinitions="*,80,80" ColumnSpacing="6" Margin="0,0,0,4">
+                                                <TextBlock Classes="label" Text="{Binding Name}" />
+                                                <NumericUpDown Grid.Column="1" Value="{Binding Iv}" Minimum="0" FormatString="0" ShowButtonSpinner="False"
+                                                               Maximum="{Binding $parent[UserControl].((vm:ForgeViewModel)DataContext).IvMax}" />
+                                                <NumericUpDown Grid.Column="2" Value="{Binding Ev}" Minimum="0" FormatString="0" ShowButtonSpinner="False"
+                                                               Maximum="{Binding $parent[UserControl].((vm:ForgeViewModel)DataContext).EvMax}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <WrapPanel>
+                                    <Button Classes="primary" Margin="0,0,8,8" Content="Save changes" Command="{Binding ApplyEditCommand}" />
+                                    <Button Classes="outlined" Margin="0,0,8,8" Content="Legalize" Command="{Binding LegalizeCommand}"
+                                            ToolTip.Tip="Auto Legality Mod: rebuilds this Pokémon as a legal one, keeping what it can" />
+                                    <Button Classes="outlined" Margin="0,0,8,8" Content="Move to Bank" Command="{Binding MoveToBankCommand}" />
+                                    <Button Classes="outlined" Margin="0,0,8,8" Content="Undo edits" Command="{Binding ResetEditCommand}" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <StackPanel Spacing="10" IsVisible="{Binding IsBankTab}">
+                        <TextBlock Classes="muted" Text="Pick a Pokémon in the Bank." IsVisible="{Binding !HasBankSelection}" />
+                        <StackPanel Spacing="10" IsVisible="{Binding HasBankSelection}">
+                            <TextBlock Classes="title" FontSize="18" Text="{Binding BankSelected.Info.Nickname, FallbackValue=''}" />
+                            <TextBlock Classes="muted" FontSize="12" Text="{Binding BankSelectedText}" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding WithdrawPreview}" FontSize="12" TextWrapping="Wrap"
+                                       IsVisible="{Binding WithdrawPreview, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                            <Button Classes="primary" Content="{Binding WithdrawText}" Command="{Binding MoveFromBankCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <TextBlock Classes="muted" TextWrapping="Wrap" IsVisible="{Binding IsBackupsTab}"
+                               Text="Restore points are full copies of the save file, kept in ~/.local/share/zest/forge/backups." />
+                </Panel>
+            </Border>
+        </Grid>
+    </DockPanel>
+</UserControl>

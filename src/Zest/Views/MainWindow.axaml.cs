@@ -88,6 +88,16 @@ public partial class MainWindow : Window
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
+        if (Vm.IsForgeOpen)
+        {
+            // Forge's own controls take every other key (typing nicknames, picking moves).
+            if (e.Key == Key.Escape && FocusManager?.GetFocusedElement() is not ComboBox { IsDropDownOpen: true })
+            {
+                Vm.CloseForgeCommand.Execute(null);
+                e.Handled = true;
+            }
+            return;
+        }
         if (!Vm.IsDetailsOpen)
             return;
         switch (e.Key)
@@ -111,7 +121,7 @@ public partial class MainWindow : Window
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (e.Handled || Vm.IsDetailsOpen)
+        if (e.Handled || Vm.IsDetailsOpen || Vm.IsForgeOpen)
             return;
 
         var typing = SearchBox.IsFocused;
@@ -172,6 +182,23 @@ public partial class MainWindow : Window
         // Only drive Zest while it's the window in front (not behind a game, Settings, or another app).
         if (!IsActive || Vm.IsGameRunning)
             return;
+
+        if (Vm.IsForgeOpen)
+        {
+            switch (button)
+            {
+                case PadButton.Back:
+                    Vm.CloseForgeCommand.Execute(null);
+                    break;
+                case PadButton.PrevTab:
+                    Vm.Forge?.ChangeBox(-1);
+                    break;
+                case PadButton.NextTab:
+                    Vm.Forge?.ChangeBox(1);
+                    break;
+            }
+            return;
+        }
 
         if (Vm.IsDetailsOpen)
         {

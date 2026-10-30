@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Zest.ViewModels"
+        xmlns:views="using:Zest.Views"
         x:Class="Zest.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/zest.png"
@@ -135,6 +136,9 @@
                     </Button>
                     <Button Classes="round" Command="{Binding RefreshCommand}" ToolTip.Tip="Rescan game folders (F5)">
                         <PathIcon Data="{StaticResource IconRefresh}" Foreground="{DynamicResource SecondaryBrush}" />
+                    </Button>
+                    <Button Classes="round" Command="{Binding OpenForgeCommand}" ToolTip.Tip="Forge: Pokémon Bank and save editor">
+                        <PathIcon Data="{StaticResource IconForge}" />
                     </Button>
                     <Button Classes="round" Click="OnSettingsClick" ToolTip.Tip="Settings">
                         <PathIcon Data="{StaticResource IconSettings}" Foreground="{DynamicResource TertiaryBrush}" />
@@ -488,6 +492,14 @@
                                         <TextBlock Text="Play" FontSize="15" />
                                     </StackPanel>
                                 </Button>
+                                <Button Classes="outlined" Margin="0,0,10,10"
+                                        IsVisible="{Binding DetailsGame.HasPokemonSave}"
+                                        Command="{Binding OpenForgeCommand}" CommandParameter="{Binding DetailsGame}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconForge}" Width="16" Height="16" />
+                                        <TextBlock Text="Edit save" />
+                                    </StackPanel>
+                                </Button>
                                 <Button Classes="outlined" Margin="0,0,10,10" Click="OnDetailsShowFile">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <PathIcon Data="{StaticResource IconFolder}" Width="16" Height="16" />
@@ -522,6 +534,26 @@
                         </StackPanel>
                     </WrapPanel>
                 </ScrollViewer>
+            </DockPanel>
+        </Panel>
+
+        <!-- Forge: PKForge's save editor and Bank -->
+        <Panel IsVisible="{Binding IsForgeOpen}">
+            <Border Background="{DynamicResource BackgroundBrush}" />
+            <Border Background="{DynamicResource GlowBottomRightBrush}" />
+            <DockPanel Margin="32,24,32,16">
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                    <Button Classes="outlined" Command="{Binding CloseForgeCommand}" ToolTip.Tip="Back (Esc)">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconBack}" Width="16" Height="16" />
+                            <TextBlock Text="Back" />
+                        </StackPanel>
+                    </Button>
+                    <TextBlock Classes="title" FontSize="26" Text="Forge" VerticalAlignment="Center" Margin="18,0,0,0" />
+                    <TextBlock Classes="muted" FontSize="12" Text="Pokémon save editor and Bank · powered by PKForge and PKHeX"
+                               VerticalAlignment="Center" Margin="12,4,0,0" />
+                </DockPanel>
+                <views:ForgeView DataContext="{Binding Forge}" />
             </DockPanel>
         </Panel>
     </Panel>

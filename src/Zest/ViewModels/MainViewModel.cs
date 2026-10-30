@@ -97,6 +97,13 @@ public partial class MainViewModel : ViewModelBase
 
     public bool IsDetailsOpen => DetailsGame is not null;
 
+    /// <summary>The Forge page (PKForge's save editor and Bank); created on first open.</summary>
+    [ObservableProperty]
+    public partial ForgeViewModel? Forge { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsForgeOpen { get; set; }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEmpty))]
     public partial bool IsScanning { get; set; }
@@ -189,6 +196,18 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private void CloseDetails() => DetailsGame = null;
 
+    /// <summary>Opens Forge on the game's own save (from the details page), or on the Bank.</summary>
+    [RelayCommand]
+    private void OpenForge(GameViewModel? game)
+    {
+        Forge ??= new ForgeViewModel(() => IsGameRunning);
+        IsForgeOpen = true;
+        _ = Forge.LoadAsync(game?.PokemonSave, game?.PokemonSave is null ? ForgeTab.Bank : ForgeTab.Save);
+    }
+
+    [RelayCommand]
+    private void CloseForge() => IsForgeOpen = false;
+
     [RelayCommand]
     private void ToggleHidden(GameViewModel? game)
     {
@@ -233,7 +252,29 @@ public partial class MainViewModel : ViewModelBase
         IsScanning = false;
         Status = $"{_all.Count(g => !g.IsHidden)} games";
 
-        await LoadArtAsync(generation);
+        await Task.WhenAll(LoadArtAsync(generation), FindPokemonSavesAsync(generation));
+    }
+
+    /// <summary>Marks the library games whose Pokémon save Forge can open (Eden NAND / Azahar SD).</summary>
+    private async Task FindPokemonSavesAsync(int generation)
+    {
+        var games = _all.Where(g => g.Game.Platform != Platform.PS2).ToList();
+        var matches = await Task.Run(() =>
+        {
+            try
+            {
+                var saves = Services.Forge.SaveLocator.Scan(Services.Forge.ForgeHost.Shared.Engine);
+                return games.Select(g => (g, save: Services.Forge.SaveLocator.ForGame(g.Game, saves))).ToList();
+            }
+            catch (Exception)
+            {
+                return [];
+            }
+        });
+        if (generation != _scanGeneration)
+            return;
+        foreach (var (game, save) in matches)
+            game.PokemonSave = save;
     }
 
     /// <summary>Called after Settings are saved: rebuild services from the new config and rescan.</summary>

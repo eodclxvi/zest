@@ -36,6 +36,13 @@ public partial class GameViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsRunning { get; set; }
 
+    /// <summary>This game's Pokémon save, when Forge found one in the emulator's save folders.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPokemonSave))]
+    public partial Services.Forge.PokemonSave? PokemonSave { get; set; }
+
+    public bool HasPokemonSave => PokemonSave is not null;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HideActionText))]
     public partial bool IsHidden { get; set; }

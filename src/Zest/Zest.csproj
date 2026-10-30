@@ -25,4 +25,10 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="LibHac" Version="0.19.0" />
   </ItemGroup>
+
+  <!-- Forge: PKForge's save editor engine (PKHeX.Core + Auto Legality Mod), built from the pinned submodule. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\external\PKForge\src\PKForge.Engine\PKForge.Engine.csproj" />
+    <ProjectReference Include="..\..\external\PKForge\src\PKForge.Infrastructure\PKForge.Infrastructure.csproj" />
+  </ItemGroup>
 </Project>
