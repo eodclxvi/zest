@@ -66,6 +66,19 @@
                 </Grid>
             </Button>
         </DataTemplate>
+
+        <!-- Move picker entry: type pill, name, and how this Pokémon learns it (dimmed when it can't). -->
+        <DataTemplate DataType="vm:MoveOption">
+            <Grid ColumnDefinitions="74,*,Auto" ColumnSpacing="8" Opacity="{Binding Dim}" ToolTip.Tip="{Binding Facts}">
+                <Border Background="{Binding TypeBrush}" CornerRadius="6" Padding="0,1" IsVisible="{Binding HasType}">
+                    <TextBlock Text="{Binding TypeName}" FontSize="10" FontWeight="Bold" Foreground="{Binding TypeForeground}"
+                               HorizontalAlignment="Center" />
+                </Border>
+                <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Column="2" Text="{Binding LearnLabel}" FontSize="11" VerticalAlignment="Center"
+                           Foreground="{DynamicResource PrimaryBrush}" />
+            </Grid>
+        </DataTemplate>
     </UserControl.DataTemplates>
 
     <DockPanel>
@@ -248,10 +261,28 @@
                                 <CheckBox Content="Shiny" IsChecked="{Binding EditShiny}" />
 
                                 <TextBlock Classes="label" Text="MOVES" />
-                                <ComboBox ItemsSource="{Binding MoveNames}" SelectedIndex="{Binding EditMove1}" MaxDropDownHeight="360" />
-                                <ComboBox ItemsSource="{Binding MoveNames}" SelectedIndex="{Binding EditMove2}" MaxDropDownHeight="360" />
-                                <ComboBox ItemsSource="{Binding MoveNames}" SelectedIndex="{Binding EditMove3}" MaxDropDownHeight="360" />
-                                <ComboBox ItemsSource="{Binding MoveNames}" SelectedIndex="{Binding EditMove4}" MaxDropDownHeight="360" />
+                                <TextBlock Classes="muted" FontSize="11" Text="{Binding MoveHint}" TextWrapping="Wrap"
+                                           IsVisible="{Binding MoveHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                <Grid ColumnDefinitions="*,22">
+                                    <ComboBox ItemsSource="{Binding MoveOptions}" SelectedItem="{Binding EditMove1}" MaxDropDownHeight="420" />
+                                    <TextBlock Grid.Column="1" Text="⚠" Foreground="#E5534B" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               IsVisible="{Binding Move1Unlearnable}" ToolTip.Tip="This Pokémon can't learn this move" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,22">
+                                    <ComboBox ItemsSource="{Binding MoveOptions}" SelectedItem="{Binding EditMove2}" MaxDropDownHeight="420" />
+                                    <TextBlock Grid.Column="1" Text="⚠" Foreground="#E5534B" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               IsVisible="{Binding Move2Unlearnable}" ToolTip.Tip="This Pokémon can't learn this move" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,22">
+                                    <ComboBox ItemsSource="{Binding MoveOptions}" SelectedItem="{Binding EditMove3}" MaxDropDownHeight="420" />
+                                    <TextBlock Grid.Column="1" Text="⚠" Foreground="#E5534B" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               IsVisible="{Binding Move3Unlearnable}" ToolTip.Tip="This Pokémon can't learn this move" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,22">
+                                    <ComboBox ItemsSource="{Binding MoveOptions}" SelectedItem="{Binding EditMove4}" MaxDropDownHeight="420" />
+                                    <TextBlock Grid.Column="1" Text="⚠" Foreground="#E5534B" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               IsVisible="{Binding Move4Unlearnable}" ToolTip.Tip="This Pokémon can't learn this move" />
+                                </Grid>
 
                                 <Grid ColumnDefinitions="*,80,80" ColumnSpacing="6">
                                     <TextBlock Classes="label" Text="STATS" />

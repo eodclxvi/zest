@@ -169,16 +169,16 @@ public partial class ForgeViewModel : ViewModelBase
     public partial int EditBall { get; set; }
 
     [ObservableProperty]
-    public partial int EditMove1 { get; set; }
+    public partial MoveOption? EditMove1 { get; set; }
 
     [ObservableProperty]
-    public partial int EditMove2 { get; set; }
+    public partial MoveOption? EditMove2 { get; set; }
 
     [ObservableProperty]
-    public partial int EditMove3 { get; set; }
+    public partial MoveOption? EditMove3 { get; set; }
 
     [ObservableProperty]
-    public partial int EditMove4 { get; set; }
+    public partial MoveOption? EditMove4 { get; set; }
 
     [ObservableProperty]
     public partial bool EditShiny { get; set; }
@@ -401,10 +401,7 @@ public partial class ForgeViewModel : ViewModelBase
         EditNature = detail.Nature;
         EditItem = detail.HeldItem;
         EditBall = detail.Ball;
-        EditMove1 = detail.Move1;
-        EditMove2 = detail.Move2;
-        EditMove3 = detail.Move3;
-        EditMove4 = detail.Move4;
+        LoadMoves(session, detail);
         EditShiny = detail.IsShiny;
         EditOt = detail.OriginalTrainer;
         EditFriendship = detail.Friendship;
@@ -446,10 +443,10 @@ public partial class ForgeViewModel : ViewModelBase
             Nature: EditNature != detail.Nature ? EditNature : null,
             Ability: EditAbility is { } a && a.Id != detail.Ability ? a.Id : null,
             HeldItem: EditItem != detail.HeldItem ? EditItem : null,
-            Move1: EditMove1 != detail.Move1 ? EditMove1 : null,
-            Move2: EditMove2 != detail.Move2 ? EditMove2 : null,
-            Move3: EditMove3 != detail.Move3 ? EditMove3 : null,
-            Move4: EditMove4 != detail.Move4 ? EditMove4 : null,
+            Move1: MoveEdit(EditMove1, detail.Move1),
+            Move2: MoveEdit(EditMove2, detail.Move2),
+            Move3: MoveEdit(EditMove3, detail.Move3),
+            Move4: MoveEdit(EditMove4, detail.Move4),
             IVs: ivs.SequenceEqual(detail.IVs) ? null : ivs,
             EVs: evs.SequenceEqual(detail.EVs) ? null : evs,
             IsShiny: EditShiny != detail.IsShiny ? EditShiny : null,
