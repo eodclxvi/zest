@@ -239,12 +239,14 @@ public partial class ForgeViewModel
         AddableItems.Clear();
         if (bag.FirstOrDefault(p => p.Name == _pouch) is not { } pouch)
             return;
-        foreach (var item in pouch.Items)
-            BagItems.Add(new BagRow { ItemId = item.Id, Name = ItemName(item.Id), Original = item.Count, Count = item.Count });
+        // The TM pouch reads best in number order (TM01, TM02 … HM01, TR00…); other pouches keep the game's order.
+        var machines = pouch.Name.Contains("TM", StringComparison.OrdinalIgnoreCase);
+        foreach (var item in machines ? pouch.Items.OrderBy(i => BagName(i.Id), StringComparer.OrdinalIgnoreCase) : pouch.Items.AsEnumerable())
+            BagItems.Add(new BagRow { ItemId = item.Id, Name = BagName(item.Id), Original = item.Count, Count = item.Count });
         var held = pouch.Items.Select(i => i.Id).ToHashSet();
         foreach (var id in session.GetPouchLegalItems(pouch.Name).Where(id => id > 0 && !held.Contains(id))
-                     .OrderBy(ItemName, StringComparer.OrdinalIgnoreCase))
-            AddableItems.Add(new ItemChoice(id, ItemName(id)));
+                     .OrderBy(BagName, StringComparer.OrdinalIgnoreCase))
+            AddableItems.Add(new ItemChoice(id, BagName(id)));
         ItemToAdd = null;
         AddCount = 1;
     }
@@ -284,6 +286,10 @@ public partial class ForgeViewModel
             return new GenerationOutcome(true, $"{SpacedName(pouch)} saved ({changes.Count} item{(changes.Count == 1 ? "" : "s")} changed; counts are capped at what the game allows).");
         }, [], $"Edit bag: {SpacedName(pouch)}");
     }
+
+    /// <summary>Bag label: machines name the move they teach in this game ("TM40 - Aerial Ace").</summary>
+    private string BagName(int id) =>
+        CurrentSave is { } save ? MachineMoves.Label(save.GameName, ItemName(id), MoveNames) : ItemName(id);
 
     private string ItemName(int id) =>
         id < ItemNames.Count && ItemNames[id].Length > 0 ? ItemNames[id] : $"Item {id}";
