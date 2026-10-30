@@ -553,7 +553,7 @@
                     <TextBlock Classes="muted" FontSize="12" Text="Pokémon save editor and Bank · powered by PKForge and PKHeX"
                                VerticalAlignment="Center" Margin="12,4,0,0" />
                 </DockPanel>
-                <views:ForgeView DataContext="{Binding Forge}" />
+                <views:ForgeView x:Name="ForgePage" DataContext="{Binding Forge}" />
             </DockPanel>
         </Panel>
     </Panel>

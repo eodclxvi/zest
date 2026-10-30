@@ -72,6 +72,10 @@
         <!-- Header: tabs + status -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,14">
             <Button Classes="chip" Classes.selected="{Binding IsSaveTab}" Command="{Binding SetTabCommand}" CommandParameter="Save" Content="Save" />
+            <Button Classes="chip" Classes.selected="{Binding IsTrainerTab}" Command="{Binding SetTabCommand}" CommandParameter="Trainer" Content="Trainer" IsEnabled="{Binding HasSave}" />
+            <Button Classes="chip" Classes.selected="{Binding IsBagTab}" Command="{Binding SetTabCommand}" CommandParameter="Bag" Content="Bag" IsEnabled="{Binding HasSave}" />
+            <Button Classes="chip" Classes.selected="{Binding IsGiftsTab}" Command="{Binding SetTabCommand}" CommandParameter="Gifts" Content="Mystery Gifts" IsEnabled="{Binding HasSave}" />
+            <Button Classes="chip" Classes.selected="{Binding IsAutopilotTab}" Command="{Binding SetTabCommand}" CommandParameter="Autopilot" Content="Living Dex" />
             <Button Classes="chip" Classes.selected="{Binding IsBankTab}" Command="{Binding SetTabCommand}" CommandParameter="Bank" Content="Bank" />
             <Button Classes="chip" Classes.selected="{Binding IsBackupsTab}" Command="{Binding SetTabCommand}" CommandParameter="Backups" Content="Restore points" />
             <ProgressBar IsIndeterminate="True" Width="80" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" Margin="10,0,0,0" />
@@ -106,7 +110,7 @@
             </Border>
 
             <!-- Middle: boxes / bank / restore points -->
-            <Border Grid.Column="1" Classes="panel">
+            <Border Grid.Column="1" Classes="panel" IsVisible="{Binding !IsDataTab}">
                 <Panel>
                     <!-- Save boxes -->
                     <DockPanel IsVisible="{Binding IsSaveTab}">
@@ -200,7 +204,7 @@
             </Border>
 
             <!-- Right: editor / bank entry -->
-            <Border Grid.Column="2" Classes="panel">
+            <Border Grid.Column="2" Classes="panel" IsVisible="{Binding !IsDataTab}">
                 <Panel>
                     <ScrollViewer IsVisible="{Binding IsSaveTab}">
                         <StackPanel Spacing="10">
@@ -292,6 +296,195 @@
 
                     <TextBlock Classes="muted" TextWrapping="Wrap" IsVisible="{Binding IsBackupsTab}"
                                Text="Restore points are full copies of the save file, kept in ~/.local/share/zest/forge/backups." />
+                </Panel>
+            </Border>
+            <!-- Trainer / Bag / Mystery Gifts: one wide panel -->
+            <Border Grid.Column="1" Grid.ColumnSpan="2" Classes="panel" IsVisible="{Binding IsDataTab}">
+                <Panel>
+                    <!-- Trainer -->
+                    <ScrollViewer IsVisible="{Binding IsTrainerTab}">
+                        <StackPanel Spacing="12" MaxWidth="560" HorizontalAlignment="Left">
+                            <StackPanel Spacing="2">
+                                <TextBlock Classes="title" FontSize="22" Text="Trainer" />
+                                <TextBlock Classes="muted" FontSize="12" Text="{Binding SaveTitle}" />
+                            </StackPanel>
+                            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+                                <TextBlock Classes="label" Text="Name" />
+                                <TextBox Grid.Column="1" Text="{Binding TrainerName}" MaxLength="12" />
+                                <TextBlock Grid.Row="1" Classes="label" Text="Trainer ID" />
+                                <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding TrainerTid}" Minimum="0" Maximum="999999" FormatString="0" ShowButtonSpinner="False" />
+                                <TextBlock Grid.Row="2" Classes="label" Text="Secret ID" />
+                                <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding TrainerSid}" Minimum="0" Maximum="9999" FormatString="0" ShowButtonSpinner="False" />
+                                <TextBlock Grid.Row="3" Classes="label" Text="Money" />
+                                <NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding TrainerMoney}" Minimum="0" Maximum="9999999" FormatString="0" ShowButtonSpinner="False" />
+                                <TextBlock Grid.Row="4" Classes="label" Text="Gender" />
+                                <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding Genders}" SelectedIndex="{Binding TrainerGender}" />
+                            </Grid>
+                            <Grid ColumnDefinitions="140,*,*" ColumnSpacing="8" IsVisible="{Binding TrainerStatsInfo.SupportsPlayTime, FallbackValue=False}">
+                                <TextBlock Classes="label" Text="Play time (h / m)" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding PlayHours}" Minimum="0" Maximum="{Binding TrainerStatsInfo.PlayTimeHoursMax, FallbackValue=999}" FormatString="0" ShowButtonSpinner="False" />
+                                <NumericUpDown Grid.Column="2" Value="{Binding PlayMinutes}" Minimum="0" Maximum="59" FormatString="0" ShowButtonSpinner="False" />
+                            </Grid>
+                            <Grid ColumnDefinitions="140,*" IsVisible="{Binding TrainerStatsInfo.SupportsBP, FallbackValue=False}">
+                                <TextBlock Classes="label" Text="Battle Points" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding BattlePoints}" Minimum="0" Maximum="{Binding TrainerStatsInfo.BPMax, FallbackValue=9999}" FormatString="0" ShowButtonSpinner="False" />
+                            </Grid>
+                            <Grid ColumnDefinitions="140,*" IsVisible="{Binding TrainerStatsInfo.SupportsCoins, FallbackValue=False}">
+                                <TextBlock Classes="label" Text="Coins" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding Coins}" Minimum="0" Maximum="{Binding TrainerStatsInfo.CoinsMax, FallbackValue=9999}" FormatString="0" ShowButtonSpinner="False" />
+                            </Grid>
+                            <Button Classes="primary" HorizontalAlignment="Left" Content="Save trainer" Command="{Binding SaveTrainerCommand}" />
+                            <Border Height="1" Background="{DynamicResource OutlineVariantBrush}" Margin="0,6" />
+                            <TextBlock Text="{Binding DexText}" />
+                            <Button Classes="outlined" HorizontalAlignment="Left" Content="{Binding CompleteDexText}" Command="{Binding CompleteDexCommand}" />
+
+                            <!-- Extras: only what this game has -->
+                            <StackPanel Spacing="8" IsVisible="{Binding HasBeans}">
+                                <Border Height="1" Background="{DynamicResource OutlineVariantBrush}" Margin="0,6" />
+                                <TextBlock Classes="title" FontSize="16" Text="Poké Beans" />
+                                <ItemsControl ItemsSource="{Binding Beans}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><UniformGrid Columns="3" /></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="vm:BeanRow">
+                                            <Grid ColumnDefinitions="*,70" ColumnSpacing="6" Margin="0,0,10,6">
+                                                <TextBlock Classes="label" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                <NumericUpDown Grid.Column="1" Value="{Binding Count}" Minimum="0" Maximum="{Binding Max}" FormatString="0" ShowButtonSpinner="False" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Button Classes="outlined" HorizontalAlignment="Left" Content="Save beans" Command="{Binding SaveBeansCommand}" />
+                            </StackPanel>
+                            <StackPanel Spacing="8" IsVisible="{Binding HasDaycare}">
+                                <Border Height="1" Background="{DynamicResource OutlineVariantBrush}" Margin="0,6" />
+                                <TextBlock Classes="title" FontSize="16" Text="Day Care" />
+                                <ItemsControl ItemsSource="{Binding Daycare}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="vm:DaycareRow">
+                                            <DockPanel Margin="0,0,0,6">
+                                                <Button DockPanel.Dock="Right" Classes="outlined" Content="Take back"
+                                                        Command="{Binding $parent[UserControl].((vm:ForgeViewModel)DataContext).WithdrawDaycareCommand}" CommandParameter="{Binding}" />
+                                                <TextBlock Text="{Binding Text}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                            <StackPanel Spacing="8" IsVisible="{Binding CanUnlockFashion}">
+                                <Border Height="1" Background="{DynamicResource OutlineVariantBrush}" Margin="0,6" />
+                                <TextBlock Classes="title" FontSize="16" Text="Fashion" />
+                                <Button Classes="outlined" HorizontalAlignment="Left" Content="Unlock all legal fashion" Command="{Binding UnlockFashionCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Bag -->
+                    <DockPanel IsVisible="{Binding IsBagTab}">
+                        <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="0,0,0,10">
+                            <TextBlock Classes="title" FontSize="22" Text="Bag" />
+                            <ItemsControl ItemsSource="{Binding Pouches}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="vm:PouchChip">
+                                        <Button Classes="chip" Classes.selected="{Binding IsSelected}" Margin="0,0,6,6" Content="{Binding Label}"
+                                                Command="{Binding $parent[UserControl].((vm:ForgeViewModel)DataContext).SelectPouchCommand}" CommandParameter="{Binding}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Grid ColumnDefinitions="*,100,Auto" ColumnSpacing="8">
+                                <ComboBox ItemsSource="{Binding AddableItems}" SelectedItem="{Binding ItemToAdd}" PlaceholderText="Add an item…" MaxDropDownHeight="360" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding AddCount}" Minimum="1" Maximum="999" FormatString="0" ShowButtonSpinner="False" />
+                                <Button Grid.Column="2" Classes="outlined" Content="Add" Command="{Binding AddItemCommand}" />
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="12" Margin="0,10,0,0">
+                            <Button Classes="primary" Content="Save pouch" Command="{Binding SaveBagCommand}" />
+                            <TextBlock Classes="muted" FontSize="12" VerticalAlignment="Center" Text="Set a count to 0 to remove an item." />
+                        </StackPanel>
+                        <ListBox ItemsSource="{Binding BagItems}" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="vm:BagRow">
+                                    <Grid ColumnDefinitions="*,110,Auto" ColumnSpacing="8">
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                        <NumericUpDown Grid.Column="1" Value="{Binding Count}" Minimum="0" Maximum="999" FormatString="0" ShowButtonSpinner="False" />
+                                        <Button Grid.Column="2" Classes="round" Width="30" Height="30" ToolTip.Tip="Remove"
+                                                Command="{Binding $parent[UserControl].((vm:ForgeViewModel)DataContext).RemoveItemCommand}" CommandParameter="{Binding}">
+                                            <PathIcon Data="{StaticResource IconClear}" Width="12" Height="12" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+
+                    <!-- Living Dex Autopilot -->
+                    <Grid IsVisible="{Binding IsAutopilotTab}" ColumnDefinitions="300,*" ColumnSpacing="20">
+                        <ScrollViewer>
+                            <StackPanel Spacing="10">
+                                <TextBlock Classes="title" FontSize="22" Text="Living Dex" />
+                                <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                                           Text="Gathers one of every species into one place from all your saves and the Bank. It moves Pokémon, never copies them, and evolves trade evolutions on the way." />
+                                <TextBlock Classes="label" Text="BUILD IT IN" />
+                                <ComboBox ItemsSource="{Binding Shelf}" SelectedItem="{Binding Destination}" />
+                                <TextBlock Classes="label" Text="TAKE POKÉMON FROM" Margin="0,6,0,0" />
+                                <ItemsControl ItemsSource="{Binding Shelf}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="vm:ShelfEntry">
+                                            <CheckBox Content="{Binding Label}" IsChecked="{Binding Include}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Classes="label" Text="OPTIONS" Margin="0,6,0,0" />
+                                <CheckBox Content="Shiny living dex" IsChecked="{Binding DexShiny}" />
+                                <CheckBox Content="Every form" IsChecked="{Binding DexForms}" />
+                                <CheckBox Content="May take from parties" IsChecked="{Binding DexIncludeParty}" />
+                                <CheckBox Content="May take a game's last copy" IsChecked="{Binding DexAllowLastCopies}" />
+                                <CheckBox Content="May send to older games" IsChecked="{Binding DexAllowDowngrades}" />
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+                                    <Button Classes="outlined" Content="Make plan" Command="{Binding MakePlanCommand}" />
+                                    <Button Classes="primary" Content="{Binding ApplyText}" Command="{Binding ApplyPlanCommand}" IsEnabled="{Binding CanApply}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                        <DockPanel Grid.Column="1">
+                            <TextBlock DockPanel.Dock="Top" Text="{Binding PlanSummary}" TextWrapping="Wrap" Margin="0,4,0,10" />
+                            <ListBox ItemsSource="{Binding PlanLines}" Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <TextBlock Text="{Binding}" FontSize="12" TextWrapping="Wrap" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </Grid>
+
+                    <!-- Mystery Gifts -->
+                    <DockPanel IsVisible="{Binding IsGiftsTab}">
+                        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,10">
+                            <TextBlock Classes="title" FontSize="22" Text="Mystery Gifts" />
+                            <TextBlock Classes="muted" FontSize="12" Text="{Binding GiftSummary}" />
+                            <TextBox Text="{Binding GiftSearch}" PlaceholderText="Search by name, Pokémon, event or year" />
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="12" Margin="0,10,0,0">
+                            <Button Classes="primary" Content="Receive gift" Command="{Binding ReceiveGiftCommand}" />
+                            <TextBlock Classes="muted" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap"
+                                       Text="Pokémon land in the first empty box slot; item gifts go to the bag." />
+                        </StackPanel>
+                        <ListBox ItemsSource="{Binding Gifts}" SelectedItem="{Binding SelectedGift}" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="vm:GiftRow">
+                                    <StackPanel Spacing="1" Margin="0,2">
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Classes="muted" FontSize="11" Text="{Binding Facts}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
                 </Panel>
             </Border>
         </Grid>

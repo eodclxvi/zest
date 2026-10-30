@@ -30,5 +30,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\external\PKForge\src\PKForge.Engine\PKForge.Engine.csproj" />
     <ProjectReference Include="..\..\external\PKForge\src\PKForge.Infrastructure\PKForge.Infrastructure.csproj" />
+    <!-- PKForge's offline Mystery Gift archives (one per generation, 4-9). -->
+    <None Include="..\..\external\PKForge\src\PKForge.App\Resources\Events\*.bin.gz"
+          Link="forge-events\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

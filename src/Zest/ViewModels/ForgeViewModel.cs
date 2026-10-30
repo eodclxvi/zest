@@ -7,7 +7,7 @@ using Zest.Services.Forge;
 
 namespace Zest.ViewModels;
 
-public enum ForgeTab { Save, Bank, Backups }
+public enum ForgeTab { Save, Trainer, Bag, Gifts, Autopilot, Bank, Backups }
 
 /// <summary>One box or party slot, drawn as a text tile (name, level marks, legality).</summary>
 public partial class SlotTile : ObservableObject
@@ -95,10 +95,16 @@ public partial class ForgeViewModel : ViewModelBase
     public IReadOnlyList<string> ItemNames { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSaveTab), nameof(IsBankTab), nameof(IsBackupsTab))]
+    [NotifyPropertyChangedFor(nameof(IsSaveTab), nameof(IsBankTab), nameof(IsBackupsTab), nameof(IsTrainerTab), nameof(IsBagTab), nameof(IsGiftsTab), nameof(IsDataTab), nameof(IsAutopilotTab))]
     public partial ForgeTab Tab { get; set; }
 
     public bool IsSaveTab => Tab == ForgeTab.Save;
+    public bool IsTrainerTab => Tab == ForgeTab.Trainer;
+    public bool IsBagTab => Tab == ForgeTab.Bag;
+    public bool IsGiftsTab => Tab == ForgeTab.Gifts;
+
+    /// <summary>Trainer, Bag and Gifts use one wide panel instead of boxes + editor.</summary>
+    public bool IsDataTab => Tab is ForgeTab.Trainer or ForgeTab.Bag or ForgeTab.Gifts or ForgeTab.Autopilot;
     public bool IsBankTab => Tab == ForgeTab.Bank;
     public bool IsBackupsTab => Tab == ForgeTab.Backups;
 
@@ -247,6 +253,7 @@ public partial class ForgeViewModel : ViewModelBase
             RefreshSlots();
             SelectSlot(Party.FirstOrDefault(t => !t.IsEmpty) ?? BoxSlots.FirstOrDefault());
             await RefreshBackupsAsync();
+            RefreshSaveTabs(reloadGifts: true);
             Status = WriteBlocker() ?? "";
         }
         catch (Exception error)
@@ -261,6 +268,14 @@ public partial class ForgeViewModel : ViewModelBase
         OnPropertyChanged(nameof(WithdrawText));
     }
 
+    /// <summary>Controller face buttons cycle the tabs (the save-bound ones are skipped while no save is open).</summary>
+    public void StepTab(int delta)
+    {
+        var tabs = Enum.GetValues<ForgeTab>().Where(t => HasSave || t is ForgeTab.Bank or ForgeTab.Autopilot).ToList();
+        var next = tabs[(tabs.IndexOf(Tab) + delta + tabs.Count) % tabs.Count];
+        SetTab(next.ToString());
+    }
+
     [RelayCommand]
     private void SetTab(string tab)
     {
@@ -269,6 +284,10 @@ public partial class ForgeViewModel : ViewModelBase
             RefreshBank();
         else if (Tab == ForgeTab.Backups)
             _ = RefreshBackupsAsync();
+        else if (Tab == ForgeTab.Autopilot)
+            LoadShelf();
+        else
+            RefreshSaveTabs();
     }
 
     // =====================================================================
@@ -523,13 +542,7 @@ public partial class ForgeViewModel : ViewModelBase
             return;
         }
 
-        // First empty box slot, starting from the box on screen.
-        var landing = session.Snapshot.Slots
-            .Where(s => s.Box >= 0 && s.Species is not > 0)
-            .OrderBy(s => (s.Box - BoxIndex + _boxCount) % Math.Max(1, _boxCount)).ThenBy(s => s.Slot)
-            .Select(s => (SlotRef?)new SlotRef(s.Box, s.Slot))
-            .FirstOrDefault();
-        if (landing is not { } room)
+        if (FirstEmptySlot(session) is not { } room)
         {
             Status = $"{CurrentSave.GameName} has no empty box slot.";
             return;
@@ -576,6 +589,13 @@ public partial class ForgeViewModel : ViewModelBase
         BankSelected = null;
         RefreshBank();
     }
+
+    /// <summary>First empty box slot, starting from the box on screen.</summary>
+    private SlotRef? FirstEmptySlot(ISaveEngineSession session) => session.Snapshot.Slots
+        .Where(s => s.Box >= 0 && s.Species is not > 0)
+        .OrderBy(s => (s.Box - BoxIndex + _boxCount) % Math.Max(1, _boxCount)).ThenBy(s => s.Slot)
+        .Select(s => (SlotRef?)new SlotRef(s.Box, s.Slot))
+        .FirstOrDefault();
 
     /// <summary>
     /// The one write path: mutate the live session, then validate + restore point + atomic
@@ -639,6 +659,7 @@ public partial class ForgeViewModel : ViewModelBase
     {
         var keep = Selected is { } d ? (d.Box, d.Slot) : ((int, int)?)null;
         RefreshSlots();
+        RefreshSaveTabs();
         if (keep is var (box, slot))
             LoadSelected(box, slot);
     }

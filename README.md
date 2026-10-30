@@ -22,6 +22,11 @@ Each game still runs in its own emulator window.
   legality check, Legalize in one click, move Pokémon between games through the Bank, and roll back with
   restore points. Every write is validated, limited to the slots it changes, and preceded by a restore point;
   writes are refused while a game is running or when the save changed on disk since it was opened.
+  Also in Forge: a **Trainer** tab (name, IDs, money, play time, Battle Points, Pokédex completion, plus Poké Beans,
+  Day Care and fashion where the game has them), a **Bag** editor, the offline **Mystery Gift** database (receive any
+  card into the save), and the **Living Dex Autopilot**, which plans and applies moves from every save and the Bank
+  into one living dex, all-or-nothing. The controller works throughout: D-pad moves between controls, A presses,
+  Left/Right nudge numbers, X/Y switch tabs, LB/RB switch boxes.
 
 ## Keys
 

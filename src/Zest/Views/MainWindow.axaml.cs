@@ -177,6 +177,8 @@ public partial class MainWindow : Window
         Vm.Status = $"Controller connected: {hints.Name}";
     }
 
+    private PadNavigator? _forgePad;
+
     private void OnPadPressed(PadButton button)
     {
         // Only drive Zest while it's the window in front (not behind a game, Settings, or another app).
@@ -185,8 +187,17 @@ public partial class MainWindow : Window
 
         if (Vm.IsForgeOpen)
         {
+            _forgePad ??= new PadNavigator(ForgePage);
+            if (_forgePad.Handle(button, FocusManager?.GetFocusedElement()))
+                return;
             switch (button)
             {
+                case PadButton.West:
+                    Vm.Forge?.StepTab(-1);
+                    break;
+                case PadButton.North:
+                    Vm.Forge?.StepTab(1);
+                    break;
                 case PadButton.Back:
                     Vm.CloseForgeCommand.Execute(null);
                     break;
