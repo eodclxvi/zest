@@ -13,8 +13,40 @@ public partial class GameViewModel : ViewModelBase
     {
         Game = game;
         Title = game.Title;
+        AddOns = game.AddOns.Select(a => new AddOnViewModel(a)).ToList();
         UpdateStats(stats);
     }
+
+    /// <summary>Updates and DLC nested under this game.</summary>
+    public IReadOnlyList<AddOnViewModel> AddOns { get; }
+
+    public bool HasAddOns => AddOns.Count > 0;
+
+    /// <summary>Short card badge: "UPDATE 2.0.2 · 2 DLC".</summary>
+    public string AddOnBadge
+    {
+        get
+        {
+            var update = Game.AddOns.FirstOrDefault(a => a.Kind == ContentKind.Update);
+            var dlc = Game.AddOns.Count(a => a.Kind == ContentKind.Dlc);
+            var parts = new List<string>();
+            if (update is not null)
+                parts.Add($"UPDATE {update.Version}");
+            if (dlc > 0)
+                parts.Add($"{dlc} DLC");
+            return string.Join(" · ", parts);
+        }
+    }
+
+    /// <summary>An update or DLC whose game isn't in the library is listed on its own, marked as such.</summary>
+    public string? KindBadge => Game.Kind switch
+    {
+        ContentKind.Update => "UPDATE",
+        ContentKind.Dlc => "DLC",
+        _ => null,
+    };
+
+    public bool IsAddOn => Game.Kind != ContentKind.Game;
 
     public string PlatformShort => PlatformInfo.Short(Game.Platform);
     public string SystemName => PlatformInfo.Name(Game.Platform);
@@ -132,3 +164,33 @@ public partial class GameViewModel : ViewModelBase
             : w.ToString("MMM d");
     }
 }
+
+/// <summary>One update or DLC file in a game's "Updates & DLC" list.</summary>
+public sealed class AddOnViewModel(Game addOn)
+{
+    public Game Game { get; } = addOn;
+    public string KindLabel => Game.Kind == ContentKind.Update ? "UPDATE" : "DLC";
+    public string Name => Game.Kind == ContentKind.Update ? $"Version {Game.Version}" : Game.Title;
+    public string FileName => Game.FileName;
+    public string TitleIdText => Game.TitleId is { } id ? id.ToString("X16") : "";
+
+    public string SizeText
+    {
+        get
+        {
+            try
+            {
+                var bytes = new FileInfo(Game.Path).Length;
+                // DLC often ships as a tiny stub whose data lives in the update.
+                return bytes >= 1L << 30 ? $"{bytes / (double)(1L << 30):0.0} GB"
+                    : bytes >= 1L << 20 ? $"{bytes / (double)(1L << 20):0} MB"
+                    : $"{Math.Max(1, bytes / 1024)} KB";
+            }
+            catch (IOException)
+            {
+                return "—";
+            }
+        }
+    }
+}
+

@@ -257,7 +257,12 @@
                                         <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="7">
                                             <Border Classes="badge"><TextBlock Text="{Binding PlatformShort}" /></Border>
                                             <Border Classes="badge" IsVisible="{Binding IsInstalled}"><TextBlock Text="INSTALLED" /></Border>
+                                            <Border Classes="badge filled" IsVisible="{Binding IsAddOn}"><TextBlock Text="{Binding KindBadge}" /></Border>
                                         </StackPanel>
+                                        <Border Classes="badge" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="7"
+                                                IsVisible="{Binding HasAddOns}" ToolTip.Tip="Updates and DLC for this game">
+                                            <TextBlock Text="{Binding AddOnBadge}" />
+                                        </Border>
                                         <Border Classes="badge filled" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="7"
                                                 IsVisible="{Binding IsRunning}">
                                             <TextBlock Text="PLAYING" />
@@ -325,7 +330,12 @@
                                         <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
                                             <Border Classes="badge"><TextBlock Text="{Binding PlatformShort}" /></Border>
                                             <Border Classes="badge" IsVisible="{Binding IsInstalled}"><TextBlock Text="INSTALLED" /></Border>
+                                            <Border Classes="badge filled" IsVisible="{Binding IsAddOn}"><TextBlock Text="{Binding KindBadge}" /></Border>
                                         </StackPanel>
+                                        <Border Classes="badge" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10"
+                                                IsVisible="{Binding HasAddOns}" ToolTip.Tip="Updates and DLC for this game">
+                                            <TextBlock Text="{Binding AddOnBadge}" />
+                                        </Border>
                                         <Border Classes="badge filled" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10"
                                                 IsVisible="{Binding IsRunning}">
                                             <TextBlock Text="PLAYING" />
@@ -522,6 +532,37 @@
                                     </StackPanel>
                                 </Button>
                             </WrapPanel>
+
+                            <!-- Updates & DLC nested under this game -->
+                            <Border Background="{DynamicResource ContainerBrush}" CornerRadius="18" Padding="18,14"
+                                    BorderBrush="{DynamicResource OutlineVariantBrush}" BorderThickness="1"
+                                    IsVisible="{Binding DetailsGame.HasAddOns}">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Classes="title" FontSize="18" Text="Updates &amp; DLC" />
+                                    <ItemsControl ItemsSource="{Binding DetailsGame.AddOns}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:AddOnViewModel">
+                                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="0,0,0,8">
+                                                    <Border Classes="badge filled" VerticalAlignment="Top" Margin="0,2,0,0">
+                                                        <TextBlock Text="{Binding KindLabel}" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Spacing="2">
+                                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" TextWrapping="Wrap" />
+                                                        <TextBlock Classes="muted" FontSize="11" FontFamily="monospace" TextWrapping="Wrap"
+                                                                   Text="{Binding FileName}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                                        <TextBlock Classes="muted" FontSize="12" Text="{Binding SizeText}" HorizontalAlignment="Right" />
+                                                        <TextBlock Classes="muted" FontSize="11" FontFamily="monospace" Text="{Binding TitleIdText}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                                               Text="Eden applies updates and DLC once they're installed into its system storage: in Eden, File → Install Files to NAND, then pick these files." />
+                                </StackPanel>
+                            </Border>
 
                             <!-- Native port: a static recompilation of this game, set up from this dump -->
                             <Border Background="{DynamicResource ContainerBrush}" CornerRadius="18" Padding="18,14"

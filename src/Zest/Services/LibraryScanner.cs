@@ -41,7 +41,8 @@ public static class LibraryScanner
         if (config.For(Platform.N3DS).IncludeInstalled)
             games.AddRange(AzaharInstalled().Where(g => seen.Add(g.Path)));
 
-        return games;
+        SwitchAddOns.Classify(games, config);
+        return SwitchAddOns.Nest(games);
     }
 
     /// <summary>Applications installed into Azahar's virtual SD card (title/00040000/&lt;id&gt;/content/*.app).</summary>

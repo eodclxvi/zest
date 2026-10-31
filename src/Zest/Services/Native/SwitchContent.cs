@@ -19,6 +19,9 @@ namespace Zest.Services.Native;
 /// <summary>The base game inside an NSP/XCI, found through its signed Application content meta.</summary>
 public sealed record SwitchApplication(ulong TitleId, string DisplayVersion, string ProgramNca, long ProgramSize);
 
+/// <summary>What an NSP/XCI holds: a game, an update or DLC, and the game an update or DLC belongs to.</summary>
+public sealed record SwitchFileInfo(Zest.Models.ContentKind Kind, ulong TitleId, ulong BaseTitleId, string? Version);
+
 /// <summary>
 /// Finds the base game in an NSP/XCI and extracts its ExeFS and RomFS, using the user's own keys.
 /// Bundled updates are ignored on purpose: ports name the base versions they accept.
@@ -43,6 +46,60 @@ public sealed class SwitchContent
     {
         using var dump = Open(path);
         return dump is null ? null : FindApplication(dump.FileSystem);
+    }
+
+    /// <summary>
+    /// Says whether the dump is a game, an update or DLC, from its content meta. A file with a base game is a game
+    /// even when it also carries an update (cartridge dumps often do). Null for formats it can't read (NSZ/XCZ/NRO).
+    /// </summary>
+    public SwitchFileInfo? Describe(string path)
+    {
+        using var dump = Open(path);
+        if (dump is null)
+            return null;
+
+        SwitchFileInfo? addOn = null;
+        foreach (var cnmt in ContentMetas(dump.FileSystem))
+        {
+            switch (cnmt.Type)
+            {
+                case ContentMetaType.Application:
+                    return new SwitchFileInfo(Zest.Models.ContentKind.Game, cnmt.TitleId, cnmt.TitleId, null);
+                case ContentMetaType.Patch:
+                    var control = cnmt.ContentEntries.FirstOrDefault(c => c.Type == ContentType.Control);
+                    string? version = null;
+                    try
+                    {
+                        if (control is not null)
+                            version = ReadDisplayVersion(dump.FileSystem, NcaName(control.NcaId));
+                    }
+                    catch (Exception e) when (e is LibHac.Common.HorizonResultException or InvalidDataException)
+                    {
+                        // An update whose control data can't be read still nests; it just shows its raw version.
+                    }
+                    addOn ??= new SwitchFileInfo(Zest.Models.ContentKind.Update, cnmt.TitleId, cnmt.ApplicationTitleId,
+                        string.IsNullOrEmpty(version) ? $"v{cnmt.TitleVersion.Version}" : version);
+                    break;
+                case ContentMetaType.AddOnContent:
+                    addOn ??= new SwitchFileInfo(Zest.Models.ContentKind.Dlc, cnmt.TitleId, cnmt.ApplicationTitleId, null);
+                    break;
+            }
+        }
+        return addOn;
+    }
+
+    private IEnumerable<Cnmt> ContentMetas(IFileSystem fs)
+    {
+        foreach (var entry in fs.EnumerateEntries("/", "*.cnmt.nca"))
+        {
+            using var meta = OpenNca(fs, entry.Name);
+            using var metaFs = meta.Nca.OpenFileSystem(0, IntegrityCheckLevel.None);
+            foreach (var cnmtEntry in metaFs.EnumerateEntries("/", "*.cnmt"))
+            {
+                using var cnmtFile = OpenFile(metaFs, cnmtEntry.FullPath);
+                yield return new Cnmt(cnmtFile.AsStream());
+            }
+        }
     }
 
     /// <summary>
@@ -85,25 +142,18 @@ public sealed class SwitchContent
 
     private SwitchApplication? FindApplication(IFileSystem fs)
     {
-        foreach (var entry in fs.EnumerateEntries("/", "*.cnmt.nca"))
+        foreach (var cnmt in ContentMetas(fs))
         {
-            using var meta = OpenNca(fs, entry.Name);
-            using var metaFs = meta.Nca.OpenFileSystem(0, IntegrityCheckLevel.None);
-            foreach (var cnmtEntry in metaFs.EnumerateEntries("/", "*.cnmt"))
-            {
-                using var cnmtFile = OpenFile(metaFs, cnmtEntry.FullPath);
-                var cnmt = new Cnmt(cnmtFile.AsStream());
-                if (cnmt.Type != ContentMetaType.Application)
-                    continue;
+            if (cnmt.Type != ContentMetaType.Application)
+                continue;
 
-                var program = cnmt.ContentEntries.FirstOrDefault(c => c.Type == ContentType.Program);
-                var control = cnmt.ContentEntries.FirstOrDefault(c => c.Type == ContentType.Control);
-                if (program is null || control is null)
-                    continue;
+            var program = cnmt.ContentEntries.FirstOrDefault(c => c.Type == ContentType.Program);
+            var control = cnmt.ContentEntries.FirstOrDefault(c => c.Type == ContentType.Control);
+            if (program is null || control is null)
+                continue;
 
-                return new SwitchApplication(cnmt.TitleId, ReadDisplayVersion(fs, NcaName(control.NcaId)),
-                    NcaName(program.NcaId), program.Size);
-            }
+            return new SwitchApplication(cnmt.TitleId, ReadDisplayVersion(fs, NcaName(control.NcaId)),
+                NcaName(program.NcaId), program.Size);
         }
         return null;
     }

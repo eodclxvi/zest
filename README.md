@@ -27,6 +27,11 @@ Each game still runs in its own emulator window.
   card into the save), and the **Living Dex Autopilot**, which plans and applies moves from every save and the Bank
   into one living dex, all-or-nothing. The controller works throughout: D-pad moves between controls, A presses,
   Left/Right nudge numbers, X/Y switch tabs, LB/RB switch boxes.
+- **Updates and DLC** are nested under their game instead of filling the library with extra cards. Zest reads
+  each Switch file's signed content meta to tell games, updates and DLC apart and to find the game they belong to
+  (compressed NSZ/XCZ files fall back to the title ID in their name). Cards show a badge such as
+  `UPDATE 1.3.2 · 2 DLC`, and the details page lists each file. An update or DLC whose game isn't in the library
+  stays visible on its own, marked UPDATE or DLC. Eden still needs them installed (File → Install Files to NAND).
 - **Native ports**: some Switch games have a community static recompilation, a native PC build of the game that
   runs without Eden. Zest recognises the dump by the title ID and version in its own signed metadata, and the
   details page then offers **Set up native port**. That downloads the project's official Linux AppImage from GitHub
