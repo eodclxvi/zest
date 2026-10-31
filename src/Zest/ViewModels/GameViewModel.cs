@@ -39,7 +39,7 @@ public partial class GameViewModel : ViewModelBase
     }
 
     /// <summary>An update or DLC whose game isn't in the library is listed on its own, marked as such.</summary>
-    public string? KindBadge => Game.Kind switch
+    public string? KindBadge => Game.Local is not null ? "NATIVE" : Game.Kind switch
     {
         ContentKind.Update => "UPDATE",
         ContentKind.Dlc => "DLC",
@@ -48,9 +48,12 @@ public partial class GameViewModel : ViewModelBase
 
     public bool IsAddOn => Game.Kind != ContentKind.Game;
 
+    public bool IsLocal => Game.Local is not null;
+    public bool HasBadge => IsAddOn || IsLocal;
+
     public string PlatformShort => PlatformInfo.Short(Game.Platform);
     public string SystemName => PlatformInfo.Name(Game.Platform);
-    public string EmulatorName => PlatformInfo.Emulator(Game.Platform);
+    public string EmulatorName => Game.Local is not null ? "Native" : PlatformInfo.Emulator(Game.Platform);
     public bool IsInstalled => Game.IsInstalled;
     public string Initials => string.Concat(Title.Split(' ', StringSplitOptions.RemoveEmptyEntries)
         .Where(w => char.IsLetterOrDigit(w[0])).Take(2).Select(w => char.ToUpperInvariant(w[0])));
@@ -117,6 +120,9 @@ public partial class GameViewModel : ViewModelBase
     public string SizeText => (_fileFacts ??= FileFacts()).size;
     public string FormatText => (_fileFacts ??= FileFacts()).format;
     public string Location => Game.IsInstalled ? "Installed in Azahar" : Path.GetDirectoryName(Game.Path) ?? "";
+
+    /// <summary>The verb for the status bar: "in Eden", or "natively" for a native build.</summary>
+    public string PlayedWith => IsLocal ? "natively" : $"in {EmulatorName}";
     public string FileName => Game.FileName;
 
     public void UpdateStats(GameStats? stats)
@@ -139,7 +145,7 @@ public partial class GameViewModel : ViewModelBase
                 bytes = new DirectoryInfo(Path.GetDirectoryName(Game.Path)!).EnumerateFiles().Sum(f => f.Length);
             else
                 bytes = new FileInfo(Game.Path).Length;
-            var format = Game.IsInstalled ? "Installed title" : Path.GetExtension(Game.Path).TrimStart('.').ToUpperInvariant();
+            var format = Game.IsInstalled ? "Installed title" : IsLocal ? "Native build" : Path.GetExtension(Game.Path).TrimStart('.').ToUpperInvariant();
             return (FormatSize(bytes), format);
         }
         catch (IOException)

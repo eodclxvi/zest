@@ -263,7 +263,8 @@ public partial class MainViewModel : ViewModelBase
     /// <summary>Marks the library games whose Pokémon save Forge can open (Eden NAND / Azahar SD).</summary>
     private async Task FindPokemonSavesAsync(int generation)
     {
-        var games = _all.Where(g => g.Game.Platform != Platform.PS2).ToList();
+        // (a native build keeps its own saves, not the emulator's)
+        var games = _all.Where(g => g.Game.Platform != Platform.PS2 && g.Game.Local is null).ToList();
         var matches = await Task.Run(() =>
         {
             try
@@ -286,7 +287,7 @@ public partial class MainViewModel : ViewModelBase
     private async Task FindNativePortsAsync(int generation)
     {
         var config = _config;
-        var games = _all.Where(g => g.Game.Platform == Platform.Switch && !g.Game.IsInstalled).ToList();
+        var games = _all.Where(g => g.Game.Platform == Platform.Switch && !g.Game.IsInstalled && g.Game.Local is null).ToList();
         var matches = await Task.Run(() =>
         {
             var content = Services.Native.SwitchContent.TryCreate(config);
@@ -368,7 +369,7 @@ public partial class MainViewModel : ViewModelBase
         IsGameRunning = ++_running > 0;
         game.UpdateStats(_stats.RecordLaunch(game.Game.Path));
         UpdateContinue();
-        Status = $"Playing {game.Title} in {game.EmulatorName}";
+        Status = $"Playing {game.Title} {game.PlayedWith}";
         try
         {
             var played = await GameLauncher.RunAsync(game.Game, _config);

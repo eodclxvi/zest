@@ -15,6 +15,10 @@ Each game still runs in its own emulator window.
 - Grid and carousel views, a details page per game, and Lemon's ten color themes
 - Controller support (SDL3); Zest lets go of the controller while a game is running
 - Hide any game (e.g. a duplicate); hidden games live under the "Hidden" chip
+- **Local native builds**: a native port you built yourself (e.g. a static recompilation) can be listed as its own
+  game with a "Native" badge and started straight from Zest, through `LocalPorts` in `config.json`:
+  `Title`, `Platform`, `Executable`, `Arguments`, `WorkingDirectory`, `ArtFrom` (a dump of the same game to take the
+  icon from) and `Log` (a file for the build's output, overwritten each run)
 - Search, per-system filter chips, four sort orders, "Continue playing", play-time tracking
 - **Forge**: a Pokémon save editor and Bank, ported from [PKForge](https://github.com/sofianeelhor/PKForge)'s
   engine (PKHeX.Core + Auto Legality Mod). Pokémon games show **Edit save** on their details page, which opens

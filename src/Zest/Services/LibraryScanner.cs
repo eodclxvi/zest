@@ -42,7 +42,16 @@ public static class LibraryScanner
             games.AddRange(AzaharInstalled().Where(g => seen.Add(g.Path)));
 
         SwitchAddOns.Classify(games, config);
-        return SwitchAddOns.Nest(games);
+        var library = SwitchAddOns.Nest(games);
+
+        // (after Classify: it reads Switch files' content meta, which a native executable doesn't have)
+        foreach (var port in config.LocalPorts)
+        {
+            var exe = AppPaths.ExpandHome(port.Executable);
+            if (File.Exists(exe) && seen.Add(exe))
+                library.Add(new Game { Path = exe, Platform = port.Platform, Title = port.Title, Local = port });
+        }
+        return library;
     }
 
     /// <summary>Applications installed into Azahar's virtual SD card (title/00040000/&lt;id&gt;/content/*.app).</summary>

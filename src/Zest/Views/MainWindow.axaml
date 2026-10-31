@@ -257,7 +257,7 @@
                                         <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="7">
                                             <Border Classes="badge"><TextBlock Text="{Binding PlatformShort}" /></Border>
                                             <Border Classes="badge" IsVisible="{Binding IsInstalled}"><TextBlock Text="INSTALLED" /></Border>
-                                            <Border Classes="badge filled" IsVisible="{Binding IsAddOn}"><TextBlock Text="{Binding KindBadge}" /></Border>
+                                            <Border Classes="badge filled" IsVisible="{Binding HasBadge}"><TextBlock Text="{Binding KindBadge}" /></Border>
                                         </StackPanel>
                                         <Border Classes="badge" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="7"
                                                 IsVisible="{Binding HasAddOns}" ToolTip.Tip="Updates and DLC for this game">
@@ -330,7 +330,7 @@
                                         <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
                                             <Border Classes="badge"><TextBlock Text="{Binding PlatformShort}" /></Border>
                                             <Border Classes="badge" IsVisible="{Binding IsInstalled}"><TextBlock Text="INSTALLED" /></Border>
-                                            <Border Classes="badge filled" IsVisible="{Binding IsAddOn}"><TextBlock Text="{Binding KindBadge}" /></Border>
+                                            <Border Classes="badge filled" IsVisible="{Binding HasBadge}"><TextBlock Text="{Binding KindBadge}" /></Border>
                                         </StackPanel>
                                         <Border Classes="badge" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10"
                                                 IsVisible="{Binding HasAddOns}" ToolTip.Tip="Updates and DLC for this game">

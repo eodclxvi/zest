@@ -11,6 +11,9 @@ public sealed partial class Game
     /// <summary>A title installed inside the emulator (Azahar's SD card), rather than a game file in a folder.</summary>
     public bool IsInstalled { get; init; }
 
+    /// <summary>A native build of the game started directly (its executable is Path), not a file for the emulator.</summary>
+    public Services.LocalPort? Local { get; init; }
+
     /// <summary>Whether the file is a game, an update or DLC (Switch files say so in their signed content meta).</summary>
     public ContentKind Kind { get; set; } = ContentKind.Game;
 

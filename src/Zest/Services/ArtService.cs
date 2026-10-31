@@ -111,7 +111,7 @@ public sealed partial class ArtService
             (string? title, byte[]? icon)? meta;
             // LibHac's key set is shared and not thread-safe while tickets are imported.
             lock (_switchLock)
-                meta = _switch.Read(game.Path);
+                meta = _switch.Read(game.Local is { ArtFrom.Length: > 0 } local ? AppPaths.ExpandHome(local.ArtFrom) : game.Path);
             if (meta is not { } m)
                 return new Result(null, null);
 

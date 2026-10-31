@@ -15,6 +15,27 @@ public sealed class EmulatorConfig
     public bool IncludeInstalled { get; set; } = true;
 }
 
+/// <summary>
+/// A native build of a game made on this machine (e.g. a static recompilation built from source), listed in the library
+/// as its own entry and started directly instead of through an emulator.
+/// </summary>
+public sealed class LocalPort
+{
+    public string Title { get; set; } = "";
+    public Platform Platform { get; set; } = Platform.Switch;
+    public string Executable { get; set; } = "";
+    public List<string> Arguments { get; set; } = [];
+
+    /// <summary>The folder it runs in (defaults to the executable's folder).</summary>
+    public string WorkingDirectory { get; set; } = "";
+
+    /// <summary>A dump of the same game to take the icon from.</summary>
+    public string ArtFrom { get; set; } = "";
+
+    /// <summary>When set, the build's output goes to this file (overwritten each run), for reading after a crash.</summary>
+    public string Log { get; set; } = "";
+}
+
 public sealed class AppConfig
 {
     public Dictionary<Platform, EmulatorConfig> Emulators { get; set; } = [];
@@ -27,6 +48,8 @@ public sealed class AppConfig
 
     /// <summary>Game paths the user chose to hide from the library (e.g. a duplicate of an installed title).</summary>
     public HashSet<string> Hidden { get; set; } = [];
+
+    public List<LocalPort> LocalPorts { get; set; } = [];
 
     public EmulatorConfig For(Platform p)
     {
