@@ -24,6 +24,7 @@
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="LibHac" Version="0.19.0" />
+    <PackageReference Include="ZstdSharp.Port" Version="0.8.8" />
   </ItemGroup>
 
   <!-- Forge: PKForge's save editor engine (PKHeX.Core + Auto Legality Mod), built from the pinned submodule. -->
@@ -31,7 +32,6 @@
     <ProjectReference Include="..\..\external\PKForge\src\PKForge.Engine\PKForge.Engine.csproj" />
     <ProjectReference Include="..\..\external\PKForge\src\PKForge.Infrastructure\PKForge.Infrastructure.csproj" />
     <!-- PKForge's offline Mystery Gift archives (one per generation, 4-9). -->
-    <None Include="..\..\external\PKForge\src\PKForge.App\Resources\Events\*.bin.gz"
-          Link="forge-events\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\external\PKForge\src\PKForge.App\Resources\Events\*.bin.gz" Link="forge-events\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -90,15 +90,19 @@ public sealed class SwitchMetadata
             return null;
 
         var nacp = System.Runtime.InteropServices.MemoryMarshal.Read<ApplicationControlProperty>(bytes);
-        // Title[0] is American English; fall back to the first language that has a name.
+        // Title[0] is American English; fall back to the first language that has a usable name. Some titles carry a
+        // damaged entry (Pokémon Fire Red's is a lone U+FFFD): skip those rather than show them.
         for (var i = 0; i < 16; i++)
         {
-            var name = nacp.Title[i].NameString.ToString();
-            if (!string.IsNullOrWhiteSpace(name))
-                return name.Trim();
+            var name = nacp.Title[i].NameString.ToString().Trim();
+            if (IsUsableName(name))
+                return name;
         }
         return null;
     }
+
+    private static bool IsUsableName(string name) =>
+        !string.IsNullOrWhiteSpace(name) && !name.Contains('\uFFFD') && name.Any(char.IsLetterOrDigit);
 
     private static byte[]? ReadIcon(IFileSystem romfs)
     {

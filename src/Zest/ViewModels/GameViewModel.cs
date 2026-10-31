@@ -82,6 +82,11 @@ public partial class GameViewModel : ViewModelBase
 
     public bool HasNativePort => NativePort is not null;
 
+    /// <summary>An nsz-compressed dump (.nsz / .xcz) that can be converted back to a standard NSP / XCI.</summary>
+    public ConvertViewModel? Convert { get; set; }
+
+    public bool CanConvert => Convert is not null;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HideActionText))]
     public partial bool IsHidden { get; set; }

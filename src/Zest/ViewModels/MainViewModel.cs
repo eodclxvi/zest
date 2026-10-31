@@ -245,7 +245,12 @@ public partial class MainViewModel : ViewModelBase
         {
             ShowStats = ShowStats,
             IsHidden = _config.Hidden.Contains(g.Path),
+            Convert = !g.IsInstalled && Services.Packages.PackageConverter.CanConvert(g.Path)
+                ? new ConvertViewModel(g.Path, RefreshAsync, () => DetailsGame = null)
+                : null,
         }).ToList();
+        foreach (var game in _all)
+            game.Convert?.Refresh();
         UpdateCounts();
         UpdateContinue();
         ApplyFilter();

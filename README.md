@@ -32,6 +32,11 @@ Each game still runs in its own emulator window.
   (compressed NSZ/XCZ files fall back to the title ID in their name). Cards show a badge such as
   `UPDATE 1.3.2 · 2 DLC`, and the details page lists each file. An update or DLC whose game isn't in the library
   stays visible on its own, marked UPDATE or DLC. Eden still needs them installed (File → Install Files to NAND).
+- **NSZ → NSP and XCZ → XCI**: compressed dumps get a **Convert** button on their details page. Zest decompresses each
+  NCZ, encrypts its sections again (AES-128-CTR) and checks every rebuilt NCA against its own SHA-256 name, so the
+  result is exact or not kept. Uncompressed files are copied as they are. XCI output gets a fresh partition layout
+  with every hash recomputed and the header's layout fields updated; the header's signature can't be redone, which
+  emulators don't check. The new file goes next to the original; **Delete the original** appears only once it exists.
 - **Native ports**: some Switch games have a community static recompilation, a native PC build of the game that
   runs without Eden. Zest recognises the dump by the title ID and version in its own signed metadata, and the
   details page then offers **Set up native port**. That downloads the project's official Linux AppImage from GitHub
@@ -100,5 +105,7 @@ The .NET 10 SDK comes from mise (`mise.toml`); the published app runs on the sys
 - Forge engine: [PKForge](https://github.com/sofianeelhor/PKForge) v3.1.1 by sofianeelhor (GPL-3.0-or-later),
   built on [PKHeX.Core](https://github.com/kwsch/PKHeX) and the Auto Legality Mod from
   [PKHeX-Plugins](https://github.com/santacrab2/PKHeX-Plugins). Not affiliated with Nintendo, Game Freak, or The Pokémon Company.
+- Zstandard decompression: [ZstdSharp](https://github.com/oleg-st/ZstdSharp) (MIT). The NCZ format is nsz's
+  (nicoboss/nsz); Zest's decoder is its own implementation.
 - Native ports are separate projects, installed from their official releases and credited on each card:
   LAS Recomp by peiikai (MIT) and Sky Recomp by Apolinario-coder. Zest bundles none of their code.
