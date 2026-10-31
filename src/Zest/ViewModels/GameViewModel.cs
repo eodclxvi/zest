@@ -43,6 +43,13 @@ public partial class GameViewModel : ViewModelBase
 
     public bool HasPokemonSave => PokemonSave is not null;
 
+    /// <summary>A native PC port of this game (a static recompilation) that Zest can set up from this dump.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNativePort))]
+    public partial NativePortViewModel? NativePort { get; set; }
+
+    public bool HasNativePort => NativePort is not null;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HideActionText))]
     public partial bool IsHidden { get; set; }

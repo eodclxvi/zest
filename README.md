@@ -27,6 +27,15 @@ Each game still runs in its own emulator window.
   card into the save), and the **Living Dex Autopilot**, which plans and applies moves from every save and the Bank
   into one living dex, all-or-nothing. The controller works throughout: D-pad moves between controls, A presses,
   Left/Right nudge numbers, X/Y switch tabs, LB/RB switch boxes.
+- **Native ports**: some Switch games have a community static recompilation, a native PC build of the game that
+  runs without Eden. Zest recognises the dump by the title ID and version in its own signed metadata, and the
+  details page then offers **Set up native port**. That downloads the project's official Linux AppImage from GitHub
+  (refused unless it matches GitHub's SHA-256), extracts the base game's `exefs/` and `romfs/` with your keys, and
+  adds **Play native**. No game files are downloaded: each port builds the game code on this PC from your dump.
+  On the first run, pick the extracted folder in the port's own setup screen (Play native puts its path on the
+  clipboard). After that, **Remove extracted files** frees Zest's copy. Supported today:
+  [LAS Recomp](https://github.com/peiikai/LASRecomp) (Link's Awakening v1.0.0/1.0.1/1.1.0, beta) and
+  [Sky Recomp](https://github.com/Apolinario-coder/SkyRecomp) (Skyward Sword HD v1.0.0, experimental).
 
 ## Keys
 
@@ -59,6 +68,8 @@ Each game still runs in its own emulator window.
 - `~/.local/share/zest/playtime.json`: play time per game
 - `~/.cache/zest/`: art and libretro indexes (safe to delete)
 - `~/.local/share/zest/forge/`: the Bank and save restore points (**not** safe to delete: the Bank lives here)
+- `~/.local/share/zest/native/<port>/`: installed port AppImages and extracted game files (the game files can be
+  removed from the details page once the port has imported them; saves live in the port's own folder)
 
 ## Build
 
@@ -84,3 +95,5 @@ The .NET 10 SDK comes from mise (`mise.toml`); the published app runs on the sys
 - Forge engine: [PKForge](https://github.com/sofianeelhor/PKForge) v3.1.1 by sofianeelhor (GPL-3.0-or-later),
   built on [PKHeX.Core](https://github.com/kwsch/PKHeX) and the Auto Legality Mod from
   [PKHeX-Plugins](https://github.com/santacrab2/PKHeX-Plugins). Not affiliated with Nintendo, Game Freak, or The Pokémon Company.
+- Native ports are separate projects, installed from their official releases and credited on each card:
+  LAS Recomp by peiikai (MIT) and Sky Recomp by Apolinario-coder. Zest bundles none of their code.

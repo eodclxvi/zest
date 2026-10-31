@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -405,6 +406,28 @@ public partial class MainWindow : Window
     private void OnMenuShowFile(object? sender, RoutedEventArgs e) => ShowFile(MenuGame(sender));
 
     private void OnDetailsShowFile(object? sender, RoutedEventArgs e) => ShowFile(Vm.DetailsGame);
+
+    // The port's first-run setup screen asks for the game files folder: have it on the clipboard.
+    private async void OnPlayNative(object? sender, RoutedEventArgs e)
+    {
+        if (Vm.DetailsGame?.NativePort is { HasGameFiles: true } native && Clipboard is { } clipboard)
+            await clipboard.SetTextAsync(native.GameFilesPath);
+    }
+
+    private async void OnCopyGameFilesPath(object? sender, RoutedEventArgs e)
+    {
+        if (Vm.DetailsGame?.NativePort is { } native && Clipboard is { } clipboard)
+        {
+            await clipboard.SetTextAsync(native.GameFilesPath);
+            native.Message = $"Copied {native.GameFilesPath}. Paste it into {native.Port.Name}'s game files folder picker.";
+        }
+    }
+
+    private void OnOpenNativeProject(object? sender, RoutedEventArgs e)
+    {
+        if (Vm.DetailsGame?.NativePort is { } native)
+            Process.Start(new ProcessStartInfo("xdg-open", [native.Port.ProjectUrl]) { UseShellExecute = false });
+    }
 
     private static void ShowFile(GameViewModel? game)
     {

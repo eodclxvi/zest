@@ -453,6 +453,7 @@
                                 <Border Classes="badge filled" IsVisible="{Binding DetailsGame.IsInstalled}"><TextBlock Text="INSTALLED IN AZAHAR" /></Border>
                                 <Border Classes="badge filled" IsVisible="{Binding DetailsGame.IsHidden}"><TextBlock Text="HIDDEN" /></Border>
                                 <Border Classes="badge filled" IsVisible="{Binding DetailsGame.IsRunning}"><TextBlock Text="PLAYING" /></Border>
+                                <Border Classes="badge filled" IsVisible="{Binding DetailsGame.HasNativePort}"><TextBlock Text="NATIVE PORT" /></Border>
                             </StackPanel>
 
                             <TextBlock Classes="title" FontSize="40" Text="{Binding DetailsGame.Title}" TextWrapping="Wrap" />
@@ -521,6 +522,71 @@
                                     </StackPanel>
                                 </Button>
                             </WrapPanel>
+
+                            <!-- Native port: a static recompilation of this game, set up from this dump -->
+                            <Border Background="{DynamicResource ContainerBrush}" CornerRadius="18" Padding="18,14"
+                                    BorderBrush="{DynamicResource OutlineVariantBrush}" BorderThickness="1"
+                                    IsVisible="{Binding DetailsGame.HasNativePort}">
+                                <StackPanel Spacing="8" DataContext="{Binding DetailsGame.NativePort}">
+                                    <DockPanel>
+                                        <Border Classes="badge" DockPanel.Dock="Right" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding ReleaseText}" />
+                                        </Border>
+                                        <TextBlock Classes="title" FontSize="18" Text="{Binding Heading}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding Port.Summary}" TextWrapping="Wrap" />
+                                    <TextBlock Classes="muted" FontSize="12" Text="Runs natively instead of in Eden. The game code is recompiled on this PC from your own dump; no game files are downloaded."
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Classes="muted" FontSize="12" Text="{Binding Facts}" TextWrapping="Wrap" />
+                                    <TextBlock Classes="muted" FontSize="12" Text="{Binding GameFilesText}" TextWrapping="Wrap" FontFamily="monospace" />
+                                    <ProgressBar IsVisible="{Binding IsBusy}" Value="{Binding Progress}" Minimum="0" Maximum="100" Height="6" />
+                                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                    <WrapPanel>
+                                        <Button Classes="primary" Margin="0,4,10,6" IsVisible="{Binding CanPlay}" IsEnabled="{Binding IsIdle}"
+                                                Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).LaunchNativeCommand}"
+                                                CommandParameter="{Binding $parent[Window].((vm:MainViewModel)DataContext).DetailsGame}"
+                                                Click="OnPlayNative">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Data="{StaticResource IconPlay}" Width="16" Height="16" />
+                                                <TextBlock Text="Play native" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Classes="outlined" Margin="0,4,10,6" IsVisible="{Binding IsIdle}" Command="{Binding SetUpCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Data="{StaticResource IconAdd}" Width="16" Height="16" />
+                                                <TextBlock Text="{Binding SetupText}" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Classes="outlined" Margin="0,4,10,6" IsVisible="{Binding IsBusy}" Command="{Binding CancelCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Data="{StaticResource IconClear}" Width="16" Height="16" />
+                                                <TextBlock Text="Cancel" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Classes="outlined" Margin="0,4,10,6" IsVisible="{Binding HasGameFiles}" Click="OnCopyGameFilesPath">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Data="{StaticResource IconFolder}" Width="16" Height="16" />
+                                                <TextBlock Text="Copy game files path" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Classes="outlined" Margin="0,4,10,6" IsVisible="{Binding HasGameFiles}" IsEnabled="{Binding IsIdle}"
+                                                Command="{Binding RemoveGameFilesCommand}"
+                                                ToolTip.Tip="After the port's own setup screen has imported them, Zest's copy is no longer needed.">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Data="{StaticResource IconClear}" Width="16" Height="16" />
+                                                <TextBlock Text="Remove extracted files" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Classes="outlined" Margin="0,4,10,6" Click="OnOpenNativeProject">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Data="{StaticResource IconInfo}" Width="16" Height="16" />
+                                                <TextBlock Text="Project page" />
+                                            </StackPanel>
+                                        </Button>
+                                    </WrapPanel>
+                                    <TextBlock Classes="muted" FontSize="11" Text="{Binding Port.Credit}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
 
                             <Border Background="{DynamicResource ContainerBrush}" CornerRadius="18" Padding="18,14"
                                     BorderBrush="{DynamicResource OutlineVariantBrush}" BorderThickness="1">

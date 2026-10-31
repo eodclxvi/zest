@@ -252,7 +252,7 @@ public partial class MainViewModel : ViewModelBase
         IsScanning = false;
         Status = $"{_all.Count(g => !g.IsHidden)} games";
 
-        await Task.WhenAll(LoadArtAsync(generation), FindPokemonSavesAsync(generation));
+        await Task.WhenAll(LoadArtAsync(generation), FindPokemonSavesAsync(generation), FindNativePortsAsync(generation));
     }
 
     /// <summary>Marks the library games whose Pokémon save Forge can open (Eden NAND / Azahar SD).</summary>
@@ -275,6 +275,73 @@ public partial class MainViewModel : ViewModelBase
             return;
         foreach (var (game, save) in matches)
             game.PokemonSave = save;
+    }
+
+    /// <summary>Marks the Switch dumps that have a native port in the catalog, by the title ID and version in their own metadata.</summary>
+    private async Task FindNativePortsAsync(int generation)
+    {
+        var config = _config;
+        var games = _all.Where(g => g.Game.Platform == Platform.Switch && !g.Game.IsInstalled).ToList();
+        var matches = await Task.Run(() =>
+        {
+            var content = Services.Native.SwitchContent.TryCreate(config);
+            if (content is null)
+                return [];
+            var found = new List<(GameViewModel game, Services.Native.NativePort port, Services.Native.SwitchApplication app)>();
+            foreach (var game in games)
+            {
+                try
+                {
+                    if (content.Identify(game.Game.Path) is { } app && Services.Native.NativePortCatalog.For(Platform.Switch, app.TitleId) is { } port)
+                        found.Add((game, port, app));
+                }
+                catch (Exception)
+                {
+                    // A dump the keys can't open: it simply gets no native port.
+                }
+            }
+            return found;
+        });
+        if (generation != _scanGeneration)
+            return;
+
+        // Two dumps of one game would share the port's folders; keep the first.
+        foreach (var (game, port, app) in matches.DistinctBy(m => m.port.Id))
+        {
+            game.NativePort = new NativePortViewModel(port, game, app, () => Services.Native.SwitchContent.TryCreate(_config));
+            _ = game.NativePort.CheckForUpdateAsync();
+        }
+    }
+
+    [RelayCommand]
+    public async Task LaunchNativeAsync(GameViewModel? game)
+    {
+        game ??= DetailsGame ?? SelectedGame;
+        if (game?.NativePort is not { CanPlay: true } native || game.IsRunning)
+            return;
+
+        game.IsRunning = true;
+        IsGameRunning = ++_running > 0;
+        game.UpdateStats(_stats.RecordLaunch(game.Game.Path));
+        UpdateContinue();
+        Status = $"Playing {game.Title} natively with {native.Port.Name}";
+        try
+        {
+            var played = await Services.Native.NativePorts.RunAsync(native.Port);
+            _stats.AddTime(game.Game.Path, played);
+            game.UpdateStats(_stats.Get(game.Game.Path));
+            Status = $"Played {game.Title} for {GameViewModel.FormatDuration(played.TotalSeconds)} with {native.Port.Name}";
+        }
+        catch (Exception e)
+        {
+            Status = $"Couldn't start {native.Port.Name}: {e.Message}";
+        }
+        finally
+        {
+            game.IsRunning = false;
+            IsGameRunning = --_running > 0;
+            ApplyFilter();
+        }
     }
 
     /// <summary>Called after Settings are saved: rebuild services from the new config and rescan.</summary>
