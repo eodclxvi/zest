@@ -321,13 +321,13 @@ public partial class MainViewModel : ViewModelBase
             var content = Services.Native.SwitchContent.TryCreate(config);
             if (content is null)
                 return [];
-            var found = new List<(GameViewModel game, Services.Native.NativePort port, Services.Native.SwitchApplication app)>();
+            var found = new List<(GameViewModel game, Services.Native.NativePort? port, Services.Native.SwitchApplication app)>();
             foreach (var game in games)
             {
                 try
                 {
-                    if (content.Identify(game.Game.Path) is { } app && Services.Native.NativePortCatalog.For(Platform.Switch, app.TitleId) is { } port)
-                        found.Add((game, port, app));
+                    if (content.Identify(game.Game.Path) is { } app)
+                        found.Add((game, Services.Native.NativePortCatalog.For(Platform.Switch, app.TitleId), app));
                 }
                 catch (Exception)
                 {
@@ -340,11 +340,39 @@ public partial class MainViewModel : ViewModelBase
             return;
 
         // Two dumps of one game would share the port's folders; keep the first.
-        foreach (var (game, port, app) in matches.DistinctBy(m => m.port.Id))
+        foreach (var (game, port, app) in matches.Where(m => m.port is not null).DistinctBy(m => m.port!.Id))
         {
-            game.NativePort = new NativePortViewModel(port, game, app, () => Services.Native.SwitchContent.TryCreate(_config));
+            game.NativePort = new NativePortViewModel(port!, game, app, () => Services.Native.SwitchContent.TryCreate(_config));
             _ = game.NativePort.CheckForUpdateAsync();
         }
+        // Ports built on this PC from source ("Install native")
+        foreach (var (game, _, app) in matches)
+        {
+            if (Services.Native.SourcePortCatalog.For(Platform.Switch, app.TitleId) is { } source &&
+                !_all.Any(g => g.SourcePort?.Port.Id == source.Id))
+                game.SourcePort = new SourcePortViewModel(source, game, _config, RegisterNativeBuildAsync);
+        }
+    }
+
+    /// <summary>After "Install native": the build becomes its own game in the library and the emulator copy is hidden.</summary>
+    private async Task RegisterNativeBuildAsync(Services.Native.SourcePort port, GameViewModel game)
+    {
+        var exe = Services.Native.NativeBuilder.Executable(port);
+        if (!_config.LocalPorts.Any(p => AppPaths.ExpandHome(p.Executable) == exe))
+            _config.LocalPorts.Add(new LocalPort
+            {
+                Title = game.Title,
+                Platform = Platform.Switch,
+                Executable = exe,
+                Arguments = ["--play"],
+                WorkingDirectory = Services.Native.NativeBuilder.Project(port),
+                ArtFrom = game.Game.Path,
+                Log = Path.Combine(Services.Native.NativeBuilder.Root(port), "play.log"),
+            });
+        if (!_config.Hidden.Contains(game.Game.Path))
+            _config.Hidden.Add(game.Game.Path);
+        _config.Save();
+        await RefreshAsync();
     }
 
     [RelayCommand]
