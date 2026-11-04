@@ -104,6 +104,16 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsForgeOpen { get; set; }
 
+    /// <summary>The window's controller (set by MainWindow): the Controls page captures presses through it.</summary>
+    public GamepadService? Gamepad { get; set; }
+
+    /// <summary>The Controls page of a native port (its larecomp.ini bindings); null when closed.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsControlsOpen))]
+    public partial ControlsViewModel? Controls { get; set; }
+
+    public bool IsControlsOpen => Controls is not null;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEmpty))]
     public partial bool IsScanning { get; set; }
@@ -207,6 +217,24 @@ public partial class MainViewModel : ViewModelBase
 
     [RelayCommand]
     private void CloseForge() => IsForgeOpen = false;
+
+    [RelayCommand]
+    private void OpenControls(GameViewModel? game)
+    {
+        if (game?.Game.Local is not { } port || Gamepad is null)
+            return;
+        var dir = AppPaths.ExpandHome(port.WorkingDirectory);
+        if (dir.Length == 0)
+            dir = Path.GetDirectoryName(AppPaths.ExpandHome(port.Executable)) ?? "";
+        Controls = new ControlsViewModel(game.Title, dir, Gamepad, () => IsGameRunning);
+    }
+
+    [RelayCommand]
+    private void CloseControls()
+    {
+        Controls?.CancelCapture();
+        Controls = null;
+    }
 
     [RelayCommand]
     private void ToggleHidden(GameViewModel? game)

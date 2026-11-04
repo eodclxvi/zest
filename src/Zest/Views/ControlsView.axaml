@@ -1,0 +1,153 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Zest.ViewModels"
+             x:Class="Zest.Views.ControlsView"
+             x:DataType="vm:ControlsViewModel">
+
+    <UserControl.Styles>
+        <!-- A binding: click it, then press the button or key -->
+        <Style Selector="Button.bind">
+            <Setter Property="MinWidth" Value="190" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Margin" Value="0,2,8,2" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource ContainerHighBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineVariantBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="Button.bind.changed">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.bind.capturing /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="Button.clear">
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="19" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource ContainerBrush}" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Padding" Value="18,14" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineVariantBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Margin" Value="0,0,0,14" />
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel>
+        <!-- What happened last / the capture prompt -->
+        <Border DockPanel.Dock="Bottom" Classes="card" Margin="0,10,0,0" Padding="16,10">
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+        </Border>
+
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel MaxWidth="980" HorizontalAlignment="Left">
+                <Border Classes="card">
+                    <StackPanel Spacing="12">
+                        <TextBlock Classes="muted" FontSize="12" Text="{Binding ControllerText}" />
+                        <WrapPanel>
+                            <StackPanel Margin="0,0,40,8" Spacing="6">
+                                <TextBlock Classes="muted" FontSize="12" Text="Controller layout" />
+                                <StackPanel Orientation="Horizontal" Spacing="16">
+                                    <RadioButton GroupName="layout" IsChecked="{Binding NintendoLayout}"
+                                                 Content="Nintendo (A right, B bottom)" />
+                                    <RadioButton GroupName="layout" IsChecked="{Binding XboxLayout}"
+                                                 Content="Xbox (A bottom, B right)" />
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,40,8" Spacing="6" Width="260">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding DeadzoneText}" />
+                                    <TextBlock Classes="muted" FontSize="12" Text="Stick dead zone" />
+                                </DockPanel>
+                                <Slider Minimum="0" Maximum="40" SmallChange="1" LargeChange="5" Value="{Binding Deadzone}" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,0,8" Spacing="6">
+                                <TextBlock Classes="muted" FontSize="12" Text="D-pad" />
+                                <ToggleSwitch IsChecked="{Binding DpadMove}" OnContent="Walks too" OffContent="D-pad only" />
+                            </StackPanel>
+                        </WrapPanel>
+                        <WrapPanel>
+                            <Button Classes="outlined" Margin="0,0,10,0" Command="{Binding ResetControllerCommand}">
+                                <TextBlock Text="Reset controller" />
+                            </Button>
+                            <Button Classes="outlined" Margin="0,0,10,0" Command="{Binding ResetKeyboardCommand}">
+                                <TextBlock Text="Reset keyboard" />
+                            </Button>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="card">
+                    <StackPanel Spacing="4">
+                        <Grid ColumnDefinitions="190,206,*" Margin="0,0,0,6">
+                            <TextBlock Classes="muted" FontSize="12" Text="Switch button" />
+                            <TextBlock Grid.Column="1" Classes="muted" FontSize="12" Text="Controller" />
+                            <TextBlock Grid.Column="2" Classes="muted" FontSize="12" Text="Keyboard" />
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding PadRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ControlRow">
+                                    <Grid ColumnDefinitions="190,206,Auto,Auto">
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                        <Button Grid.Column="1" Classes="bind" Classes.changed="{Binding PadChanged}"
+                                                Classes.capturing="{Binding IsCapturingPad}" Command="{Binding CapturePadCommand}"
+                                                ToolTip.Tip="Click, then press a controller button or trigger">
+                                            <TextBlock Text="{Binding PadText}" />
+                                        </Button>
+                                        <Button Grid.Column="2" Classes="bind" Classes.changed="{Binding KeyChanged}"
+                                                Classes.capturing="{Binding IsCapturingKey}" Command="{Binding CaptureKeyCommand}"
+                                                ToolTip.Tip="Click, then press a key">
+                                            <TextBlock Text="{Binding KeyText}" />
+                                        </Button>
+                                        <Button Grid.Column="3" Classes="clear" Command="{Binding ClearKeyCommand}" ToolTip.Tip="No key">
+                                            <PathIcon Data="{StaticResource IconClear}" Width="14" Height="14" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="card">
+                    <StackPanel Spacing="4">
+                        <TextBlock Classes="muted" FontSize="12" Margin="0,0,0,6"
+                                   Text="Sticks on the keyboard (a controller's sticks always stay its sticks)" />
+                        <ItemsControl ItemsSource="{Binding KeyOnlyRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ControlRow">
+                                    <Grid ColumnDefinitions="190,Auto,Auto">
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                        <Button Grid.Column="1" Classes="bind" Classes.changed="{Binding KeyChanged}"
+                                                Classes.capturing="{Binding IsCapturingKey}" Command="{Binding CaptureKeyCommand}"
+                                                ToolTip.Tip="Click, then press a key">
+                                            <TextBlock Text="{Binding KeyText}" />
+                                        </Button>
+                                        <Button Grid.Column="2" Classes="clear" Command="{Binding ClearKeyCommand}" ToolTip.Tip="No key">
+                                            <PathIcon Data="{StaticResource IconClear}" Width="14" Height="14" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Margin="4,0,0,8"
+                           Text="The port's own overlay menu (F1 or Home) always keeps the standard layout, so a binding can never lock you out of it. Changes apply the next time the game starts. The Controls tab in that overlay edits the same settings." />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

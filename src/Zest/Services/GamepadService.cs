@@ -39,6 +39,10 @@ public sealed class GamepadService : IDisposable
     public event Action<PadButton>? Pressed;
     public event Action? ConnectionChanged;
 
+    /// <summary>A raw press while capturing (BeginCapture): an SDL gamepad button, 26 = left trigger, 27 = right.</summary>
+    private Action<int>? _capture;
+    private uint _rawHeld;
+
     public bool Available { get; }
     public bool IsConnected => _pad != 0;
     public string? ControllerName { get; private set; }
@@ -64,6 +68,47 @@ public sealed class GamepadService : IDisposable
             5 => "✕", 6 => "○", 7 => "□", 8 => "△",
             _ => button switch { PadButton.Confirm => "A", PadButton.Back => "B", PadButton.West => "X", _ => "Y" },
         };
+    }
+
+    /// <summary>The connected controller's family for button names: 0 Nintendo/other, 1 Xbox, 2 PlayStation.</summary>
+    public int Family
+    {
+        get
+        {
+            if (_pad == 0)
+                return 0;
+            return Sdl.SDL_GetGamepadType(_pad) switch
+            {
+                2 or 3 => 1,      // SDL_GAMEPAD_TYPE_XBOX360 / XBOXONE
+                4 or 5 or 6 => 2, // PS3 / PS4 / PS5
+                _ => 0,
+            };
+        }
+    }
+
+    /// <summary>The next button or trigger pressed goes to <paramref name="onPress"/> (once) instead of the
+    /// normal presses; ones already held when this starts count only after they are let go.</summary>
+    public void BeginCapture(Action<int> onPress)
+    {
+        _capture = onPress;
+        _rawHeld = _pad == 0 ? 0 : RawState();
+    }
+
+    public void CancelCapture() => _capture = null;
+
+    public bool IsCapturing => _capture is not null;
+
+    private uint RawState()
+    {
+        uint s = 0;
+        for (var b = 0; b < 26; b++)
+            if (Sdl.SDL_GetGamepadButton(_pad, b))
+                s |= 1u << b;
+        if (Sdl.SDL_GetGamepadAxis(_pad, Sdl.AxisLeftTrigger) > StickThreshold)
+            s |= 1u << 26;
+        if (Sdl.SDL_GetGamepadAxis(_pad, Sdl.AxisRightTrigger) > StickThreshold)
+            s |= 1u << 27;
+        return s;
     }
 
     public GamepadService()
@@ -121,6 +166,21 @@ public sealed class GamepadService : IDisposable
                 return;
         }
 
+        if (_capture is { } capture)
+        {
+            var raw = RawState();
+            var fresh = raw & ~_rawHeld;
+            _rawHeld = raw;
+            if (fresh != 0)
+            {
+                _capture = null;
+                capture(System.Numerics.BitOperations.TrailingZeroCount(fresh));
+            }
+            // (the normal presses stay quiet meanwhile; the buttons held now count as held afterwards, no repeat press)
+            MarkHeld();
+            return;
+        }
+
         var lx = Sdl.SDL_GetGamepadAxis(_pad, Sdl.AxisLeftX);
         var ly = Sdl.SDL_GetGamepadAxis(_pad, Sdl.AxisLeftY);
         Update(PadButton.Up, Button(Sdl.ButtonDpadUp) || ly < -StickThreshold);
@@ -138,6 +198,24 @@ public sealed class GamepadService : IDisposable
     }
 
     private bool Button(int b) => Sdl.SDL_GetGamepadButton(_pad, b);
+
+    private void MarkHeld()
+    {
+        var lx = Sdl.SDL_GetGamepadAxis(_pad, Sdl.AxisLeftX);
+        var ly = Sdl.SDL_GetGamepadAxis(_pad, Sdl.AxisLeftY);
+        _held[(int)PadButton.Up] = Button(Sdl.ButtonDpadUp) || ly < -StickThreshold;
+        _held[(int)PadButton.Down] = Button(Sdl.ButtonDpadDown) || ly > StickThreshold;
+        _held[(int)PadButton.Left] = Button(Sdl.ButtonDpadLeft) || lx < -StickThreshold;
+        _held[(int)PadButton.Right] = Button(Sdl.ButtonDpadRight) || lx > StickThreshold;
+        _held[(int)PadButton.Confirm] = Button(Sdl.ButtonSouth);
+        _held[(int)PadButton.Back] = Button(Sdl.ButtonEast);
+        _held[(int)PadButton.West] = Button(Sdl.ButtonWest);
+        _held[(int)PadButton.North] = Button(Sdl.ButtonNorth);
+        _held[(int)PadButton.PrevTab] = Button(Sdl.ButtonLeftShoulder);
+        _held[(int)PadButton.NextTab] = Button(Sdl.ButtonRightShoulder);
+        _held[(int)PadButton.Start] = Button(Sdl.ButtonStart);
+        _held[(int)PadButton.Select] = Button(Sdl.ButtonBack);
+    }
 
     private void Update(PadButton button, bool down)
     {
@@ -202,7 +280,10 @@ public sealed class GamepadService : IDisposable
         public const int ButtonSouth = 0, ButtonEast = 1, ButtonWest = 2, ButtonNorth = 3, ButtonBack = 4, ButtonStart = 6;
         public const int ButtonLeftShoulder = 9, ButtonRightShoulder = 10;
         public const int ButtonDpadUp = 11, ButtonDpadDown = 12, ButtonDpadLeft = 13, ButtonDpadRight = 14;
-        public const int AxisLeftX = 0, AxisLeftY = 1;
+        public const int AxisLeftX = 0, AxisLeftY = 1, AxisLeftTrigger = 4, AxisRightTrigger = 5;
+
+        [DllImport(Lib)]
+        public static extern int SDL_GetGamepadType(nint gamepad);
 
         [DllImport(Lib)]
         [return: MarshalAs(UnmanagedType.U1)]

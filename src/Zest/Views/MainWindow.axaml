@@ -511,6 +511,14 @@
                                         <TextBlock Text="Edit save" />
                                     </StackPanel>
                                 </Button>
+                                <Button Classes="outlined" Margin="0,0,10,10"
+                                        IsVisible="{Binding DetailsGame.IsLocal}"
+                                        Command="{Binding OpenControlsCommand}" CommandParameter="{Binding DetailsGame}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconGamepad}" Width="16" Height="16" />
+                                        <TextBlock Text="Controls" />
+                                    </StackPanel>
+                                </Button>
                                 <Button Classes="outlined" Margin="0,0,10,10" Click="OnDetailsShowFile">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <PathIcon Data="{StaticResource IconFolder}" Width="16" Height="16" />
@@ -696,6 +704,26 @@
                                VerticalAlignment="Center" Margin="12,4,0,0" />
                 </DockPanel>
                 <views:ForgeView x:Name="ForgePage" DataContext="{Binding Forge}" />
+            </DockPanel>
+        </Panel>
+
+        <!-- Controls: a native port's button and key mapping (its larecomp.ini) -->
+        <Panel IsVisible="{Binding IsControlsOpen}">
+            <Border Background="{DynamicResource BackgroundBrush}" />
+            <Border Background="{DynamicResource GlowBottomRightBrush}" />
+            <DockPanel Margin="32,24,32,16">
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                    <Button Classes="outlined" Command="{Binding CloseControlsCommand}" ToolTip.Tip="Back (Esc)">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconBack}" Width="16" Height="16" />
+                            <TextBlock Text="Back" />
+                        </StackPanel>
+                    </Button>
+                    <TextBlock Classes="title" FontSize="26" Text="Controls" VerticalAlignment="Center" Margin="18,0,0,0" />
+                    <TextBlock Classes="muted" FontSize="12" Text="{Binding Controls.Title}"
+                               VerticalAlignment="Center" Margin="12,4,0,0" />
+                </DockPanel>
+                <views:ControlsView x:Name="ControlsPage" DataContext="{Binding Controls}" />
             </DockPanel>
         </Panel>
     </Panel>

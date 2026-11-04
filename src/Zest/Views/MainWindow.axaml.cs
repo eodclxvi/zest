@@ -42,6 +42,7 @@ public partial class MainWindow : Window
         base.OnDataContextChanged(e);
         if (DataContext is MainViewModel vm)
         {
+            vm.Gamepad = _gamepad;
             vm.PropertyChanged += OnVmPropertyChanged;
             vm.Games.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(() => LayoutCarousel(animate: false), DispatcherPriority.Loaded);
         }
@@ -59,6 +60,17 @@ public partial class MainWindow : Window
                 {
                     LayoutCarousel(animate: false);
                     FocusSelected();
+                }, DispatcherPriority.Loaded);
+                break;
+            case nameof(MainViewModel.IsControlsOpen):
+                _controlsPad = null; // (a new page: its controls are new)
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (Vm.IsControlsOpen)
+                        ControlsPage.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Classes.Contains("bind"))
+                            ?.Focus(NavigationMethod.Directional);
+                    else if (Vm.IsDetailsOpen)
+                        DetailsPlay.Focus(NavigationMethod.Directional);
                 }, DispatcherPriority.Loaded);
                 break;
             case nameof(MainViewModel.IsDetailsOpen):
@@ -89,6 +101,18 @@ public partial class MainWindow : Window
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
+        if (Vm.Controls is { } controls)
+        {
+            // A key capture takes any key (Escape cancels it); otherwise Escape leaves the page.
+            if (controls.KeyPressed(e.PhysicalKey))
+                e.Handled = true;
+            else if (e.Key == Key.Escape)
+            {
+                Vm.CloseControlsCommand.Execute(null);
+                e.Handled = true;
+            }
+            return;
+        }
         if (Vm.IsForgeOpen)
         {
             // Forge's own controls take every other key (typing nicknames, picking moves).
@@ -122,7 +146,7 @@ public partial class MainWindow : Window
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (e.Handled || Vm.IsDetailsOpen || Vm.IsForgeOpen)
+        if (e.Handled || Vm.IsDetailsOpen || Vm.IsForgeOpen || Vm.IsControlsOpen)
             return;
 
         var typing = SearchBox.IsFocused;
@@ -169,6 +193,7 @@ public partial class MainWindow : Window
         var hints = Vm.Controller;
         hints.IsConnected = _gamepad.IsConnected;
         hints.Name = _gamepad.ControllerName ?? "";
+        Vm.Controls?.Refresh(); // (button names follow the controller's family)
         if (!_gamepad.IsConnected)
             return;
         hints.Confirm = _gamepad.LabelOf(PadButton.Confirm);
@@ -179,12 +204,23 @@ public partial class MainWindow : Window
     }
 
     private PadNavigator? _forgePad;
+    private PadNavigator? _controlsPad;
 
     private void OnPadPressed(PadButton button)
     {
         // Only drive Zest while it's the window in front (not behind a game, Settings, or another app).
         if (!IsActive || Vm.IsGameRunning)
             return;
+
+        if (Vm.IsControlsOpen)
+        {
+            _controlsPad ??= new PadNavigator(ControlsPage);
+            if (_controlsPad.Handle(button, FocusManager?.GetFocusedElement()))
+                return;
+            if (button == PadButton.Back)
+                Vm.CloseControlsCommand.Execute(null);
+            return;
+        }
 
         if (Vm.IsForgeOpen)
         {
