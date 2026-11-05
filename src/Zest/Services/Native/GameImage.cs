@@ -93,6 +93,58 @@ public sealed class GameImage : IDisposable
         }
     }
 
+    /// <summary>A DLC package's data (each Data NCA's RomFS) as &lt;dest&gt;/&lt;title id&gt;.romfs, the image the runtime
+    /// serves for its add-on mounts. Returns the title ids written.</summary>
+    public static List<ulong> WriteAddOn(string prodKeys, string titleKeys, string nsp, string dest, CancellationToken cancel)
+    {
+        var keys = KeySet.CreateDefaultKeySet();
+        ExternalKeyReader.ReadKeyFile(keys, prodKeys, titleKeys, null, null);
+        using var storage = new LocalStorage(nsp, FileAccess.Read);
+        var pfs = new PartitionFileSystem();
+        pfs.Initialize(storage).ThrowIfFailure();
+        foreach (var e in pfs.EnumerateEntries("/", "*.tik"))
+        {
+            var t = new Ticket(OpenFile(pfs, e.FullPath).AsStream());
+            var k = t.GetTitleKey(keys);
+            if (k is not null)
+                keys.ExternalKeySet.Add(new RightsId(t.RightsId), new AccessKey(k));
+        }
+        Directory.CreateDirectory(dest);
+        var written = new List<ulong>();
+        foreach (var e in pfs.EnumerateEntries("/", "*.cnmt.nca"))
+        {
+            using var mfs = new Nca(keys, OpenFile(pfs, e.FullPath).AsStorage()).OpenFileSystem(0, IntegrityCheckLevel.None);
+            foreach (var c in mfs.EnumerateEntries("/", "*.cnmt"))
+            {
+                var cnmt = new Cnmt(OpenFile(mfs, c.FullPath).AsStream());
+                if (cnmt.Type != LibHac.Ncm.ContentMetaType.AddOnContent)
+                    continue;
+                foreach (var ce in cnmt.ContentEntries.Where(x => x.Type == LibHac.Ncm.ContentType.Data))
+                {
+                    var nca = new Nca(keys, OpenFile(pfs, "/" + Convert.ToHexStringLower(ce.NcaId) + ".nca").AsStorage());
+                    using var rs = nca.OpenStorage(NcaSectionType.Data, IntegrityCheckLevel.ErrorOnInvalid);
+                    rs.GetSize(out var size).ThrowIfFailure();
+                    var output = System.IO.Path.Combine(dest, $"{cnmt.TitleId:X16}.romfs");
+                    using (var o = File.Create(output + ".part"))
+                    {
+                        var buf = new byte[8 << 20];
+                        for (long off = 0; off < size;)
+                        {
+                            cancel.ThrowIfCancellationRequested();
+                            var n = (int)Math.Min(buf.Length, size - off);
+                            rs.Read(off, buf.AsSpan(0, n)).ThrowIfFailure();
+                            o.Write(buf, 0, n);
+                            off += n;
+                        }
+                    }
+                    File.Move(output + ".part", output, overwrite: true);
+                    written.Add(cnmt.TitleId);
+                }
+            }
+        }
+        return written;
+    }
+
     private IFileSystem OpenExeFs() => _patch is null
         ? _base.OpenFileSystem(NcaSectionType.Code, IntegrityCheckLevel.ErrorOnInvalid)
         : _base.OpenFileSystemWithPatch(_patch, NcaSectionType.Code, IntegrityCheckLevel.ErrorOnInvalid);
