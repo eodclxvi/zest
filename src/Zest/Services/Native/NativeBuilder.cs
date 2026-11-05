@@ -48,6 +48,7 @@ public static partial class NativeBuilder
         }
         LinkFromSibling(port, project, ".venv");
         LinkFonts(port, project);
+        SeedFromSibling(port, project, log);
 
         // 2. game files
         var extracted = Path.Combine(project, "extracted");
@@ -207,6 +208,39 @@ public static partial class NativeBuilder
             if (!File.Exists(link))
                 File.CreateSymbolicLink(link, target);
         }
+    }
+
+    // A new project starts with the sibling's settings (resolution, anti-aliasing, frame rate: without them a port runs at
+    // 720p with no AA) and its compiled shaders (cache/spirv, one file per shader hash: games on one engine share many,
+    // so the first play compiles far fewer - Scarlet shared 176 of Violet's). Nothing already there is replaced.
+    private static void SeedFromSibling(SourcePort port, string project, StreamWriter log)
+    {
+        if (port.CloneFrom is not { } from)
+            return;
+        var sibling = AppPaths.ExpandHome(from.Dir);
+        var ini = Path.Combine(project, PortControls.FileName);
+        var siblingIni = Path.Combine(sibling, PortControls.FileName);
+        if (!File.Exists(ini) && File.Exists(siblingIni))
+        {
+            File.Copy(siblingIni, ini);
+            log.WriteLine($"[zest] settings copied from {siblingIni}");
+        }
+        var src = Path.Combine(sibling, "cache", "spirv");
+        if (!Directory.Exists(src))
+            return;
+        var dst = Path.Combine(project, "cache", "spirv");
+        Directory.CreateDirectory(dst);
+        var copied = 0;
+        foreach (var f in Directory.EnumerateFiles(src, "*.spv"))
+        {
+            var t = Path.Combine(dst, Path.GetFileName(f));
+            if (File.Exists(t))
+                continue;
+            File.Copy(f, t);
+            copied++;
+        }
+        if (copied > 0)
+            log.WriteLine($"[zest] {copied} compiled shaders seeded from {src}");
     }
 
     private static async Task RunAsync(StreamWriter log, string exe, IReadOnlyList<string> args, Action<string>? onLine,
