@@ -85,6 +85,13 @@ public partial class GameViewModel : ViewModelBase
 
     public bool HasNativePort => NativePort is not null;
 
+    /// <summary>A port of this game Zest can build on this PC ("Install native").</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSourcePort))]
+    public partial SourcePortViewModel? SourcePort { get; set; }
+
+    public bool HasSourcePort => SourcePort is not null;
+
     /// <summary>An nsz-compressed dump (.nsz / .xcz) that can be converted back to a standard NSP / XCI.</summary>
     public ConvertViewModel? Convert { get; set; }
 
