@@ -33,8 +33,26 @@ public sealed record NativePort
     /// <summary>Shown under the card, as the project asks to be credited and described.</summary>
     public required string Credit { get; init; }
 
+    /// <summary>Ports whose release builds the game itself through a command-line setup (TotK Recomp): Zest runs it
+    /// with the player's dump (and update) and shows its progress; null for ports with their own setup screen.</summary>
+    public CliSetup? Setup { get; init; }
+
     public string ProjectUrl => $"https://github.com/{Repo}";
     public string TitleIdText => TitleId.ToString("X16");
+}
+
+/// <summary>A release's command-line setup: unpacked from the AppImage, run as
+/// <c>python3 -m installer --base --update --keys --lang --dest</c>, one JSON event per line on stdout.</summary>
+public sealed record CliSetup
+{
+    /// <summary>The game executable in the install folder.</summary>
+    public required string GameExecutable { get; init; }
+    /// <summary>The update versions the setup accepts (it needs one).</summary>
+    public required IReadOnlySet<string> UpdateVersions { get; init; }
+    /// <summary>Share of the progress bar per setup step (the setup's own step names).</summary>
+    public required IReadOnlyDictionary<string, double> StepWeights { get; init; }
+    /// <summary>The setup's description of a step, for the progress line.</summary>
+    public required IReadOnlyDictionary<string, string> StepNames { get; init; }
 }
 
 /// <summary>
@@ -83,6 +101,42 @@ public static class NativePortCatalog
             Summary = "Skyward Sword HD running natively on Vulkan: 60 FPS by default, optional 120 FPS, mouse camera and a mod manager.",
             Credit = "Sky Recomp by Apolinario-coder, built on LAS Recomp. Experimental: crashes and menu freezes are still being investigated. "
                 + "Not affiliated with Nintendo.",
+        },
+
+        // github.com/valentderah/totk-pc-recomp README: base game + update 1.1.0, 1.2.1 or 1.4.3 (NSP/XCI, NSZ/XCZ);
+        // Linux AppImage whose setup builds the game on the player's PC (docs/installer.md: a command-line setup with
+        // JSON progress events). MIT. Chosen over UltraTears (GPL, 1.4.3 only, wants unpacked folders) on 2026-11-04.
+        new()
+        {
+            Id = "totkrecomp",
+            Name = "TotK Recomp",
+            Author = "valentderah",
+            Repo = "valentderah/totk-pc-recomp",
+            Platform = Platform.Switch,
+            TitleId = 0x0100F2C0115B6000,
+            Versions = new HashSet<string> { "1.0.0" },
+            ExeFsFiles = ["main", "main.npdm"],
+            Asset = new Regex(@"^TotK-Setup-x86_64-.+-linux\.AppImage$"),
+            Status = "Early development",
+            Licence = "MIT",
+            Summary = "Tears of the Kingdom natively on Vulkan: 60 fps (up to 144), custom resolutions and supersampling, FSR 1, ultrawide, emulator mods and cheats.",
+            Credit = "TotK Recomp by valentderah and contributors (MIT). Its README says most of the code is written by AI coding agents "
+                + "(Claude Code) under the maintainer's direction. Not affiliated with Nintendo.",
+            Setup = new CliSetup
+            {
+                GameExecutable = "totk",
+                UpdateVersions = new HashSet<string> { "1.1.0", "1.2.1", "1.4.3" },
+                StepWeights = new Dictionary<string, double>
+                {
+                    ["check"] = 1, ["fonts"] = 0.5, ["extract"] = 28, ["lift"] = 8, ["compile"] = 45, ["prepare"] = 16, ["dlss"] = 0.5, ["cleanup"] = 1,
+                },
+                StepNames = new Dictionary<string, string>
+                {
+                    ["check"] = "Checking your files", ["fonts"] = "Fonts", ["extract"] = "Unpacking the game and the update",
+                    ["lift"] = "Translating the game code", ["compile"] = "Compiling the game", ["prepare"] = "Preparing shaders",
+                    ["dlss"] = "DLSS", ["cleanup"] = "Cleaning up",
+                },
+            },
         },
     ];
 
