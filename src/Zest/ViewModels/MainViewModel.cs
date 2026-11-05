@@ -342,7 +342,8 @@ public partial class MainViewModel : ViewModelBase
         // Two dumps of one game would share the port's folders; keep the first.
         foreach (var (game, port, app) in matches.Where(m => m.port is not null).DistinctBy(m => m.port!.Id))
         {
-            game.NativePort = new NativePortViewModel(port!, game, app, () => Services.Native.SwitchContent.TryCreate(_config));
+            game.NativePort = new NativePortViewModel(port!, game, app, () => Services.Native.SwitchContent.TryCreate(_config),
+                () => string.IsNullOrEmpty(_config.ProdKeys) ? null : AppPaths.ExpandHome(_config.ProdKeys));
             _ = game.NativePort.CheckForUpdateAsync();
         }
         // Ports built on this PC from source ("Install native")
