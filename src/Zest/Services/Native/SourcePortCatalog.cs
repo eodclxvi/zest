@@ -68,18 +68,19 @@ public static class SourcePortCatalog
         {
             Id = "sv-violet", Name = "Violet Recomp", Platform = Platform.Switch, TitleId = 0x01008F6008C5E000,
             ProjectDir = "~/Projects/recomp/violet-recomp", Branch = "violet", CloneFrom = ("~/Projects/recomp/swsh-recomp", "swsh"),
-            KnownBuilds = new Dictionary<string, string> { ["92A2F1DDB9523799"] = "1.2.0" },
+            KnownBuilds = new Dictionary<string, string> { ["709BFD6611529864"] = "4.0.0", ["92A2F1DDB9523799"] = "1.2.0" },
+            NeedsUpdate = true,
             Status = "Playable",
-            Summary = "Pokémon Violet natively on Vulkan at 30 fps with supersampling (60 fps in progress).",
+            Summary = "Pokémon Violet 4.0.0 natively on Vulkan at 30 fps with supersampling, with The Teal Mask and The Indigo Disk.",
         },
         new()
         {
             Id = "sv-scarlet", Name = "Scarlet Recomp", Platform = Platform.Switch, TitleId = 0x0100A3D008C5C000,
             ProjectDir = "~/Projects/recomp/scarlet-recomp", Branch = "scarlet", CloneFrom = ("~/Projects/recomp/violet-recomp", "violet"),
-            KnownBuilds = new Dictionary<string, string>(),
+            KnownBuilds = new Dictionary<string, string> { ["421C5411B487EB4D"] = "4.0.0" },
             NeedsUpdate = true,
-            Status = "Experimental",
-            Summary = "Pokémon Scarlet on Violet's port. Never run yet: the first build is the first test.",
+            Status = "Playable",
+            Summary = "Pokémon Scarlet 4.0.0 on Violet's port: 30 fps with supersampling, with The Teal Mask and The Indigo Disk.",
         },
         new()
         {

@@ -29,7 +29,7 @@ public static partial class NativeBuilder
     private const double FilesEnd = 30, GenEnd = 38, CompileEnd = 99;
 
     public static async Task BuildAsync(SourcePort port, AppConfig config, string dump, string? update,
-        IProgress<BuildProgress> progress, CancellationToken cancel)
+        IProgress<BuildProgress> progress, CancellationToken cancel, IReadOnlyList<string>? dlcs = null)
     {
         Directory.CreateDirectory(Root(port));
         await using var log = new StreamWriter(LogPath(port), append: false) { AutoFlush = true };
@@ -86,6 +86,29 @@ public static partial class NativeBuilder
                 Relink(exefs, newExefs);
                 Relink(romfs, newRomfs);
                 await log.WriteLineAsync($"[zest] game files written to {files}");
+            }
+        }
+
+        // 2b. DLC: each package's data as extracted/aoc/<title id>.romfs (what the runtime's aoc:u lists and mounts)
+        if (dlcs is { Count: > 0 })
+        {
+            var aoc = Path.Combine(extracted, "aoc");
+            var have = Directory.Exists(aoc) ? Directory.GetFiles(aoc, "*.romfs").Length : 0;
+            if (have >= dlcs.Count)
+                await log.WriteLineAsync($"[zest] DLC already in place ({have})");
+            else
+            {
+                progress.Report(new("Writing the DLC", FilesEnd));
+                var dest = Path.Combine(Root(port), "aoc");
+                foreach (var d in dlcs)
+                {
+                    var ids = await Task.Run(() => GameImage.WriteAddOn(keys, titleKeys, d, dest, cancel), cancel);
+                    await log.WriteLineAsync($"[zest] DLC {Path.GetFileName(d)}: {string.Join(", ", ids.Select(i => i.ToString("X16")))}");
+                }
+                if (Directory.Exists(aoc) && new DirectoryInfo(aoc).LinkTarget is null)
+                    await log.WriteLineAsync($"[zest] {aoc} is a real folder: DLC written to {dest} instead, not linked");
+                else
+                    Relink(aoc, dest);
             }
         }
 

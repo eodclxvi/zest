@@ -81,7 +81,8 @@ public partial class SourcePortViewModel : ViewModelBase
         }));
         try
         {
-            await Task.Run(() => NativeBuilder.BuildAsync(Port, _config, _game.Game.Path, Port.NeedsUpdate ? UpdatePath : null, progress, token), token);
+            var dlcs = _game.Game.AddOns.Where(a => a.Kind == Models.ContentKind.Dlc).Select(a => a.Path).ToList();
+            await Task.Run(() => NativeBuilder.BuildAsync(Port, _config, _game.Game.Path, Port.NeedsUpdate ? UpdatePath : null, progress, token, dlcs), token);
             IsBuilt = true;
             await _onBuilt(Port, _game);
             Message = $"Installed. {Port.Name} is in your library as its own game (the emulator copy is hidden).";
