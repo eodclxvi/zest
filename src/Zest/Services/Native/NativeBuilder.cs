@@ -106,15 +106,31 @@ public static partial class NativeBuilder
         var todo = 0;
         await RunAsync(log, "make", [.. make, "-n", "all"], line => { if (IsCompile(line)) todo++; }, null, cancel, quiet: true);
         await log.WriteLineAsync($"[zest] {todo} files to compile with {jobs} jobs");
-        var done = 0;
+        // (the generated code compiles silently, @ in the Makefile: progress = object files written since the start)
         progress.Report(new(todo == 0 ? "Already compiled" : $"Compiling (0 of {todo} files)", GenEnd));
-        await RunAsync(log, "make", [.. make, $"-j{jobs}", "all"], line =>
+        var started = DateTime.UtcNow.AddSeconds(-1);
+        var objDir = Path.Combine(project, "build");
+        using var tick = new CancellationTokenSource();
+        var watcher = Task.Run(async () =>
         {
-            if (!IsCompile(line))
-                return;
-            done++;
-            progress.Report(new($"Compiling ({done} of {todo} files)", GenEnd + (CompileEnd - GenEnd) * Math.Min(1, done / (double)Math.Max(1, todo))));
-        }, null, cancel);
+            while (!tick.IsCancellationRequested && todo > 0)
+            {
+                try { await Task.Delay(1000, tick.Token); } catch (OperationCanceledException) { break; }
+                var done = Directory.Exists(objDir)
+                    ? Directory.EnumerateFiles(objDir, "*.o", SearchOption.AllDirectories).Count(f => File.GetLastWriteTimeUtc(f) >= started)
+                    : 0;
+                progress.Report(new($"Compiling ({Math.Min(done, todo)} of {todo} files)", GenEnd + (CompileEnd - GenEnd) * Math.Min(1, done / (double)todo)));
+            }
+        });
+        try
+        {
+            await RunAsync(log, "make", [.. make, $"-j{jobs}", "all"], null, null, cancel);
+        }
+        finally
+        {
+            tick.Cancel();
+            await watcher;
+        }
         if (!IsBuilt(port))
             throw new IOException("The build finished without the game executable; see the build log.");
         progress.Report(new("Done", 100));
