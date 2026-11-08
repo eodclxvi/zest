@@ -513,6 +513,9 @@ public partial class MainViewModel : ViewModelBase
         game.UpdateStats(_stats.RecordLaunch(game.Game.Path));
         UpdateContinue();
         Status = $"Playing {game.Title} natively with {native.Port.Name}";
+        if (native.Port.Builder is { PreparedMarker: { } marker, FirstStartNote: { } note }
+            && !File.Exists(Path.Combine(Services.Native.NativePorts.GameFolder(native.Port), marker)))
+            Status += $" · {note}";
         try
         {
             var played = await Services.Native.NativePorts.RunAsync(native.Port);
