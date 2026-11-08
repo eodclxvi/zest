@@ -164,7 +164,9 @@ public static class NativePorts
 
     /// <summary>The setup has finished a build in the game folder.</summary>
     public static bool IsGameBuilt(NativePort port) =>
-        port.Extract is { } x
+        port.Builder is { } b
+            ? b.ReadyFiles.All(f => File.Exists(Path.Combine(GameFolder(port), f)))
+            : port.Extract is { } x
             ? x.ReadyFiles.All(f => File.Exists(Path.Combine(AppPaths.ExpandHome(x.GameDir), f)))
             : port.Setup is { } s && File.Exists(Path.Combine(GameFolder(port), s.GameExecutable)) &&
               File.Exists(Path.Combine(GameFolder(port), "totk-install.json"));
@@ -328,12 +330,113 @@ public static class NativePorts
         progress.Report((100, "Ready"));
     }
 
+    // ---- ports whose AppImage builds the game from a .nup (NativePort.Builder: Hookshot)
+
+    /// <summary>
+    /// Builds the game into the game folder: checks the file's version first (the builder's --check), then builds,
+    /// or for a folder built before rebuilds it with this release (--update: only changed code is compiled, saves
+    /// and settings are kept). Progress comes from the builder's "@@stage/@@progress/@@eta/@@error" lines; all output
+    /// goes to build.log. Cancelling stops the builder's process tree.
+    /// </summary>
+    public static async Task RunBuilderAsync(NativePort port, string nup, IProgress<(double percent, string text)> progress, CancellationToken cancel)
+    {
+        var b = port.Builder ?? throw new InvalidOperationException($"{port.Name} has no builder.");
+        var release = Installed(port) ?? throw new InvalidOperationException($"{port.Name} isn't installed.");
+        Directory.CreateDirectory(Root(port));
+        await using var log = new StreamWriter(Path.Combine(Root(port), "build.log"), append: false) { AutoFlush = true };
+
+        progress.Report((0, "Checking your game's version…"));
+        string? check = null;
+        await RunBuilderStepAsync(release, ["--cli", "--check", "--nup", nup], log, l =>
+        {
+            if (l.StartsWith("@@check ", StringComparison.Ordinal))
+                check = l["@@check ".Length..];
+        }, cancel);
+        if (check is null || !check.StartsWith("ok", StringComparison.Ordinal))
+            throw new InvalidDataException(check is null ? $"{port.Name} couldn't check this file; see {Path.Combine(Root(port), "build.log")}."
+                : check.StartsWith("bad ", StringComparison.Ordinal) ? check[4..] : check);
+
+        var update = IsGameBuilt(port);
+        string[] args = update
+            ? ["--cli", "--update", GameFolder(port)]
+            : ["--cli", "--nup", nup, "--out", GameFolder(port), "--language", b.Language];
+        double total = b.StageWeights.Values.Sum(), before = 0, weight = 0, frac = 0;
+        string stage = "", eta = "";
+        string? error = null;
+        void Show() => progress.Report((Math.Min(99.5, 100 * (before + weight * frac) / total), stage + eta));
+        var exit = await RunBuilderStepAsync(release, args, log, l =>
+        {
+            var space = l.IndexOf(' ');
+            var (word, rest) = space < 0 ? (l, "") : (l[..space], l[(space + 1)..]);
+            switch (word)
+            {
+                case "@@stage":
+                    before += weight;
+                    var parts = rest.Split(' ', 2);
+                    weight = b.StageWeights.GetValueOrDefault(parts[0], 0);
+                    stage = parts.Length > 1 ? parts[1] : parts[0];
+                    frac = 0;
+                    eta = "";
+                    Show();
+                    break;
+                case "@@progress" when double.TryParse(rest, System.Globalization.CultureInfo.InvariantCulture, out var f):
+                    frac = Math.Clamp(f, 0, 1);
+                    Show();
+                    break;
+                case "@@eta" when double.TryParse(rest, System.Globalization.CultureInfo.InvariantCulture, out var s) && s > 0:
+                    eta = s >= 90 ? $" · about {Math.Round(s / 60)} min left" : " · under 2 min left";
+                    Show();
+                    break;
+                case "@@error":
+                    error = rest;
+                    break;
+            }
+        }, cancel);
+        cancel.ThrowIfCancellationRequested();
+        if (exit != 0 || !IsGameBuilt(port))
+            throw new IOException($"{port.Name}'s build stopped{(error is null ? $" (exit {exit})" : $": {error}")}. Log: {Path.Combine(Root(port), "build.log")}");
+        progress.Report((100, "Ready"));
+    }
+
+    /// <summary>Runs the release AppImage with these arguments, each output line to the log and <paramref name="line"/>; returns the exit code.</summary>
+    private static async Task<int> RunBuilderStepAsync(InstalledRelease release, string[] args, StreamWriter log, Action<string> line, CancellationToken cancel)
+    {
+        var psi = new ProcessStartInfo(release.AppImage)
+        {
+            UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+            WorkingDirectory = Path.GetDirectoryName(release.AppImage)!,
+        };
+        foreach (var a in args)
+            psi.ArgumentList.Add(a);
+        if (!File.Exists("/usr/bin/fusermount3") && !File.Exists("/usr/bin/fusermount"))
+            psi.Environment["APPIMAGE_EXTRACT_AND_RUN"] = "1";
+        using var p = Process.Start(psi) ?? throw new IOException("Could not start the builder.");
+        using var reg = cancel.Register(() => { try { p.Kill(entireProcessTree: true); } catch (InvalidOperationException) { } });
+        var gate = new object();
+        async Task Pump(StreamReader r)
+        {
+            while (await r.ReadLineAsync(CancellationToken.None) is { } l)
+            {
+                lock (gate)
+                {
+                    log.WriteLine(l);
+                    line(l.Trim());
+                }
+            }
+        }
+        await Task.WhenAll(Pump(p.StandardOutput), Pump(p.StandardError));
+        await p.WaitForExitAsync(CancellationToken.None);
+        return p.ExitCode;
+    }
+
     /// <summary>Starts the port and returns when it exits, with how long it ran: the built game for a port with a
     /// command-line setup, otherwise the release's AppImage.</summary>
     public static async Task<TimeSpan> RunAsync(NativePort port)
     {
         var release = Installed(port) ?? throw new InvalidOperationException($"{port.Name} isn't installed.");
-        var psi = port.Setup is { } cli
+        var psi = port.Builder is not null
+            ? new ProcessStartInfo(release.AppImage, ["--play", GameFolder(port)]) { UseShellExecute = false, WorkingDirectory = GameFolder(port) }
+            : port.Setup is { } cli
             ? new ProcessStartInfo(Path.Combine(GameFolder(port), cli.GameExecutable)) { UseShellExecute = false, WorkingDirectory = GameFolder(port) }
             : new ProcessStartInfo(release.AppImage)
         {

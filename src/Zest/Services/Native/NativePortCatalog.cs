@@ -41,6 +41,10 @@ public sealed record NativePort
     /// started with an environment variable naming it (Savage Wind); null otherwise.</summary>
     public FolderSetup? Extract { get; init; }
 
+    /// <summary>Ports whose release AppImage builds the game from the player's .nup into a folder and plays it from
+    /// there (Hookshot); null otherwise.</summary>
+    public BuilderSetup? Builder { get; init; }
+
     /// <summary>The project publishes only pre-releases: install the newest release of any kind.</summary>
     public bool AllowPrerelease { get; init; }
 
@@ -74,6 +78,18 @@ public sealed record FolderSetup
     public required string GameDir { get; init; }
     /// <summary>Files in GameDir that mean the game is set up and built.</summary>
     public required IReadOnlyList<string> ReadyFiles { get; init; }
+}
+
+/// <summary>A release AppImage with a builder that reports its work as "@@" lines (Hookshot's nx2/make_game.py):
+/// <c>--cli --check --nup &lt;file&gt;</c> checks the version, <c>--cli --nup &lt;file&gt; --out &lt;folder&gt;</c> builds the game,
+/// <c>--cli --update &lt;folder&gt;</c> builds it again with a newer release, <c>--play &lt;folder&gt;</c> starts it.</summary>
+public sealed record BuilderSetup
+{
+    /// <summary>Files in the game folder that mean the game is built.</summary>
+    public required IReadOnlyList<string> ReadyFiles { get; init; }
+    /// <summary>Share of the progress bar per builder stage (its @@stage ids).</summary>
+    public required IReadOnlyDictionary<string, double> StageWeights { get; init; }
+    public string Language { get; init; } = "en-US";
 }
 
 /// <summary>
@@ -186,6 +202,32 @@ public static class NativePortCatalog
                 UpdateVersions = new HashSet<string> { "1.9.0" },
                 GameDir = "~/.local/share/savagewind/extracted",
                 ReadyFiles = ["exefs/main", "swgame.so"],
+            },
+        },
+
+        // github.com/NotRexed/Hookshot README: Ocarina of Time (Switch 2), program 0400486024DEC000 with update
+        // v131072 (build e0f3ccfa), from the .nup; Linux AppImage with the whole toolchain inside, the game built on
+        // the player's PC (~40 min); GPL-3.0-or-later. Added 2026-11-08 (v2.0.3).
+        new()
+        {
+            Id = "hookshot",
+            Name = "Hookshot",
+            Author = "NotRexed",
+            Repo = "NotRexed/Hookshot",
+            Platform = Platform.Switch2,
+            TitleId = 0x0400486024DEC000,
+            Versions = new HashSet<string> { "131072" },
+            ExeFsFiles = [],
+            Asset = new Regex(@"^Hookshot-.+-x86_64\.AppImage$"),
+            Status = "Experimental",
+            Licence = "GPL-3.0-or-later",
+            Summary = "Ocarina of Time (Switch 2) natively on Vulkan: in-game menu with upscaling and frame generation, controller, keyboard and saves.",
+            Credit = "Hookshot by NotRexed and contributors (GPL-3.0-or-later), with shader work from Eden, suyu, Orchid and Eglantine. "
+                + "Experimental: tested mostly in Kokiri Forest, about 50 fps without frame generation, stutter in new areas. Not affiliated with Nintendo.",
+            Builder = new BuilderSetup
+            {
+                ReadyFiles = ["image.bin", "bin/hookshot"],
+                StageWeights = new Dictionary<string, double> { ["read"] = 6, ["lift"] = 12, ["compile"] = 77, ["finish"] = 5 },
             },
         },
     ];
