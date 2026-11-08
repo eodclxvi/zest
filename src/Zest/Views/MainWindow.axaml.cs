@@ -37,6 +37,7 @@ public partial class MainWindow : Window
         PositionChanged += (_, _) => UpdateCarouselSize();
         Resized += (_, _) => UpdateCarouselSize();
         ScalingChanged += (_, _) => UpdateCarouselSize();
+        CarouselArea.SizeChanged += (_, _) => UpdateCarouselSize();
         Closed += (_, _) => _gamepad.Dispose();
     }
 
@@ -349,11 +350,13 @@ public partial class MainWindow : Window
     // ---- Carousel ----
 
     private const double BaseCardWidth = 300, BaseCardHeight = 380, BaseScreenHeight = 720;
+    // (the selected cover's border and the list item's padding around the card; the smallest cover worth showing)
+    private const double CarouselRowMargin = 24, MinCardHeight = 160;
 
     /// <summary>
-    /// Sizes the carousel covers for the monitor the window is on: 300 x 380 at 720 pixels tall (HDMI-A-1, 1920x720),
-    /// growing 60% of the way with the height (x1.3 at 1080, x1.6 at 1440, at most x1.8), and never taller than 62% of
-    /// the window, so a small window on a big monitor keeps room for the title and buttons.
+    /// Sizes the carousel covers for the monitor the window is on: 380 pixels tall at 720 (HDMI-A-1, 1920x720),
+    /// growing 60% of the way with the height (x1.3 at 1080, x1.6 at 1440, at most x1.8), and never taller than the
+    /// carousel's row (the space above the title and buttons), so a cover is never cropped.
     /// </summary>
     private void UpdateCarouselSize()
     {
@@ -361,7 +364,9 @@ public partial class MainWindow : Window
             return;
         var screenHeight = screen.Bounds.Height / screen.Scaling;
         var factor = Math.Clamp(1 + 0.6 * (screenHeight - BaseScreenHeight) / BaseScreenHeight, 1, 1.8);
-        var height = Math.Round(Math.Max(BaseCardHeight, Math.Min(BaseCardHeight * factor, ClientSize.Height * 0.62)));
+        var row = CarouselArea.RowDefinitions[0].ActualHeight;
+        var fit = row > 0 ? row - CarouselRowMargin : double.MaxValue;
+        var height = Math.Round(Math.Max(MinCardHeight, Math.Min(BaseCardHeight * factor, fit)));
         if (Math.Abs(vm.CarouselCardHeight - height) < 1)
             return;
         vm.CarouselCardHeight = height;
