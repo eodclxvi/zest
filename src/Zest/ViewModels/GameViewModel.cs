@@ -22,6 +22,17 @@ public partial class GameViewModel : ViewModelBase
 
     public bool HasAddOns => AddOns.Count > 0;
 
+    /// <summary>A native build this emulator dump is listed under (on its details page) instead of in the library.</summary>
+    public GameViewModel? NestedUnder { get; set; }
+
+    /// <summary>Native builds: the emulator dumps of the same game, played from this game's details page.</summary>
+    public List<GameViewModel> EmulatorCopies { get; } = [];
+
+    public bool HasEmulatorCopies => EmulatorCopies.Count > 0;
+
+    /// <summary>"Also in Eden" on a native build's details page.</summary>
+    public string EmulatorCopiesHeading => $"Also in {PlatformInfo.Emulator(Game.Platform)}";
+
     /// <summary>Short card badge: "UPDATE 2.0.2 · 2 DLC".</summary>
     public string AddOnBadge
     {

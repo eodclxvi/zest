@@ -578,6 +578,56 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Native builds: the emulator dumps of the same game, played from here -->
+                            <Border Background="{DynamicResource ContainerBrush}" CornerRadius="18" Padding="18,14"
+                                    BorderBrush="{DynamicResource OutlineVariantBrush}" BorderThickness="1"
+                                    IsVisible="{Binding DetailsGame.HasEmulatorCopies}">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Classes="title" FontSize="18" Text="{Binding DetailsGame.EmulatorCopiesHeading}" />
+                                    <ItemsControl ItemsSource="{Binding DetailsGame.EmulatorCopies}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:GameViewModel">
+                                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="0,0,0,8">
+                                                    <Border CornerRadius="10" ClipToBounds="True" Width="56" Height="56" VerticalAlignment="Top"
+                                                            Background="{DynamicResource ContainerHighestBrush}">
+                                                        <Image Source="{Binding Art}" Stretch="UniformToFill" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Title}" FontWeight="Bold" TextWrapping="Wrap" />
+                                                        <TextBlock Classes="muted" FontSize="12" Text="{Binding StatsText}" />
+                                                        <TextBlock Classes="muted" FontSize="11" FontFamily="monospace" TextWrapping="Wrap" Text="{Binding FileName}" />
+                                                        <TextBlock Classes="muted" FontSize="11" IsVisible="{Binding HasAddOns}" Text="{Binding AddOnBadge}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                        <Button Classes="primary"
+                                                                Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).LaunchCommand}" CommandParameter="{Binding}">
+                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                <PathIcon Data="{StaticResource IconPlay}" Width="16" Height="16" />
+                                                                <TextBlock Text="{Binding EmulatorName, StringFormat='Play in {0}'}" />
+                                                            </StackPanel>
+                                                        </Button>
+                                                        <Button Classes="outlined" IsVisible="{Binding HasPokemonSave}"
+                                                                Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).OpenForgeCommand}" CommandParameter="{Binding}">
+                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                <PathIcon Data="{StaticResource IconForge}" Width="16" Height="16" />
+                                                                <TextBlock Text="Edit save" />
+                                                            </StackPanel>
+                                                        </Button>
+                                                        <Button Classes="outlined" ToolTip.Tip="This dump's own page: updates and DLC, native ports, file"
+                                                                Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).OpenDetailsCommand}" CommandParameter="{Binding}">
+                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                <PathIcon Data="{StaticResource IconInfo}" Width="16" Height="16" />
+                                                                <TextBlock Text="Details" />
+                                                            </StackPanel>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Shader caches: search for shared caches; Lichii packs install here -->
                             <Border Background="{DynamicResource ContainerBrush}" CornerRadius="18" Padding="18,14"
                                     BorderBrush="{DynamicResource OutlineVariantBrush}" BorderThickness="1"
