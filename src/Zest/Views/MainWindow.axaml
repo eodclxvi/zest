@@ -281,7 +281,7 @@
                 </ListBox>
 
                 <!-- Carousel view -->
-                <Grid IsVisible="{Binding IsCarouselView}" RowDefinitions="*,Auto">
+                <Grid x:Name="CarouselArea" IsVisible="{Binding IsCarouselView}" RowDefinitions="*,Auto">
                     <ListBox x:Name="Carousel" Classes="games" ItemsSource="{Binding Games}" SelectedItem="{Binding SelectedGame}"
                              SelectionMode="Single" AutoScrollToSelectedItem="False" DoubleTapped="OnGameDoubleTapped"
                              VerticalAlignment="Center"
