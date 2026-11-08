@@ -90,6 +90,10 @@ public sealed record BuilderSetup
     /// <summary>Share of the progress bar per builder stage (its @@stage ids).</summary>
     public required IReadOnlyDictionary<string, double> StageWeights { get; init; }
     public string Language { get; init; } = "en-US";
+    /// <summary>A file the game writes once its first start has prepared the shaders (no window until then).</summary>
+    public string? PreparedMarker { get; init; }
+    /// <summary>What the first start does, for the status bar.</summary>
+    public string? FirstStartNote { get; init; }
 }
 
 /// <summary>
@@ -228,6 +232,8 @@ public static class NativePortCatalog
             {
                 ReadyFiles = ["image.bin", "bin/hookshot"],
                 StageWeights = new Dictionary<string, double> { ["read"] = 6, ["lift"] = 12, ["compile"] = 77, ["finish"] = 5 },
+                PreparedMarker = "hookshot_prepared.bin",
+                FirstStartNote = "first start: preparing ~53,000 shaders before its window opens (about 4-7 minutes, only once)",
             },
         },
     ];
