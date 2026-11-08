@@ -49,10 +49,7 @@ public static class NativePorts
     /// <summary>Downloads the latest official release AppImage, refusing it unless it matches GitHub's SHA-256 digest.</summary>
     public static async Task<InstalledRelease> InstallAsync(NativePort port, IProgress<(long done, long total)>? progress, CancellationToken cancel)
     {
-        using var meta = await Http.GetAsync($"https://api.github.com/repos/{port.Repo}/releases/latest", cancel);
-        meta.EnsureSuccessStatusCode();
-        var release = await JsonSerializer.DeserializeAsync<GitHubRelease>(await meta.Content.ReadAsStreamAsync(cancel), cancellationToken: cancel)
-            ?? throw new InvalidDataException("GitHub returned no release.");
+        var release = await NewestReleaseAsync(port, cancel) ?? throw new InvalidDataException("GitHub returned no release.");
 
         var asset = release.Assets.FirstOrDefault(a => port.Asset.IsMatch(a.Name))
             ?? throw new InvalidDataException($"{port.Name} {release.Tag} has no Linux x86-64 AppImage.");
@@ -105,16 +102,28 @@ public static class NativePorts
     {
         try
         {
-            using var meta = await Http.GetAsync($"https://api.github.com/repos/{port.Repo}/releases/latest", cancel);
-            if (!meta.IsSuccessStatusCode)
-                return null;
-            var release = await JsonSerializer.DeserializeAsync<GitHubRelease>(await meta.Content.ReadAsStreamAsync(cancel), cancellationToken: cancel);
-            return release?.Tag;
+            return (await NewestReleaseAsync(port, cancel))?.Tag;
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException)
         {
             return null;
         }
+    }
+
+    /// <summary>The release Zest installs: GitHub's "latest" (which skips pre-releases), or for a port that only
+    /// publishes pre-releases (NativePort.AllowPrerelease: Savage Wind) the newest one of any kind.</summary>
+    private static async Task<GitHubRelease?> NewestReleaseAsync(NativePort port, CancellationToken cancel)
+    {
+        if (!port.AllowPrerelease)
+        {
+            using var meta = await Http.GetAsync($"https://api.github.com/repos/{port.Repo}/releases/latest", cancel);
+            meta.EnsureSuccessStatusCode();
+            return await JsonSerializer.DeserializeAsync<GitHubRelease>(await meta.Content.ReadAsStreamAsync(cancel), cancellationToken: cancel);
+        }
+        using var list = await Http.GetAsync($"https://api.github.com/repos/{port.Repo}/releases?per_page=10", cancel);
+        list.EnsureSuccessStatusCode();
+        var all = await JsonSerializer.DeserializeAsync<List<GitHubRelease>>(await list.Content.ReadAsStreamAsync(cancel), cancellationToken: cancel);
+        return all?.FirstOrDefault(r => r.Assets.Any(a => port.Asset.IsMatch(a.Name)));
     }
 
     /// <summary>Extracts the base game's exefs/ and romfs/ for the port, after checking it is a version the port accepts.</summary>

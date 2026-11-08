@@ -41,6 +41,9 @@ public sealed record NativePort
     /// started with an environment variable naming it (Savage Wind); null otherwise.</summary>
     public FolderSetup? Extract { get; init; }
 
+    /// <summary>The project publishes only pre-releases: install the newest release of any kind.</summary>
+    public bool AllowPrerelease { get; init; }
+
     public string ProjectUrl => $"https://github.com/{Repo}";
     public string TitleIdText => TitleId.ToString("X16");
 }
@@ -172,6 +175,7 @@ public static class NativePortCatalog
             ExeFsFiles = ["main", "main.npdm"],
             Asset = new Regex(@"^Savage_Wind-.+-x86_64\.AppImage$"),
             Status = "Alpha",
+            AllowPrerelease = true,
             Licence = "MIT",
             Summary = "Breath of the Wild 1.9.0 natively on Vulkan: 60 fps, PC graphics options, any controller, keyboard and mouse.",
             Credit = "Savage Wind Recomp by Revivedx and contributors (MIT), built on LAS Recomp. Its README says it is made almost "
