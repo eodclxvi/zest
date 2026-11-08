@@ -46,6 +46,9 @@ public sealed class AppConfig
     public ViewMode View { get; set; } = ViewMode.Grid;
     public string Theme { get; set; } = "Lemon";
 
+    /// <summary>Before a Lichii game starts, merge its Lichii Shader Sync pack when the pack has grown.</summary>
+    public bool UpdateShaderCaches { get; set; } = true;
+
     /// <summary>Game paths the user chose to hide from the library (e.g. a duplicate of an installed title).</summary>
     public HashSet<string> Hidden { get; set; } = [];
 

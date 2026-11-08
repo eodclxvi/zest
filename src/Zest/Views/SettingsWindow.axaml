@@ -149,6 +149,17 @@
                         <TextBox Text="{Binding TitleKeys}" FontFamily="monospace" FontSize="13" />
                     </StackPanel>
                 </Border>
+
+                <Border Classes="section">
+                    <StackPanel Spacing="8">
+                        <TextBlock Classes="title" FontSize="18" Text="Shader caches" />
+                        <CheckBox IsChecked="{Binding UpdateShaderCaches}">
+                            <TextBlock Text="Update Lichii shader caches before playing" />
+                        </CheckBox>
+                        <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                                   Text="When Lichii Shader Sync has a bigger pack for a Switch 2 game, it is merged into Lichii's cache before the game starts. Search for other games' caches on their details page." />
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

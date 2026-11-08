@@ -576,6 +576,60 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Shader caches: search for shared caches; Lichii packs install here -->
+                            <Border Background="{DynamicResource ContainerBrush}" CornerRadius="18" Padding="18,14"
+                                    BorderBrush="{DynamicResource OutlineVariantBrush}" BorderThickness="1"
+                                    IsVisible="{Binding DetailsGame.CanSearchShaders}">
+                                <StackPanel Spacing="8" DataContext="{Binding DetailsGame.ShaderCache}">
+                                    <TextBlock Classes="title" FontSize="18" Text="Shader caches" />
+                                    <TextBlock Classes="muted" FontSize="12" Text="{Binding Explanation}" TextWrapping="Wrap" />
+                                    <ProgressBar IsVisible="{Binding IsBusy}" IsIndeterminate="True" Height="6" />
+                                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap"
+                                               IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                    <ItemsControl ItemsSource="{Binding Results}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:ShaderCacheHitViewModel">
+                                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="0,0,0,8">
+                                                    <Border Classes="badge filled" VerticalAlignment="Top" Margin="0,2,0,0">
+                                                        <TextBlock Text="{Binding Source}" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Spacing="2">
+                                                        <TextBlock Text="{Binding Title}" FontWeight="Bold" TextWrapping="Wrap" />
+                                                        <TextBlock Classes="muted" FontSize="11" Text="{Binding Detail}" TextWrapping="Wrap" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                                                        <Button Classes="primary" IsVisible="{Binding Installable}" Command="{Binding InstallCommand}"
+                                                                IsEnabled="{Binding $parent[ItemsControl].((vm:ShaderCacheViewModel)DataContext).IsIdle}">
+                                                            <TextBlock Text="{Binding InstallText}" />
+                                                        </Button>
+                                                        <Button Classes="outlined" Command="{Binding OpenCommand}" ToolTip.Tip="Open in the browser">
+                                                            <TextBlock Text="Open" />
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <WrapPanel>
+                                        <Button Classes="outlined" Margin="0,4,10,6" IsVisible="{Binding IsIdle}" Command="{Binding SearchCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16" />
+                                                <TextBlock Text="Search for shader caches" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Classes="outlined" Margin="0,4,10,6" IsVisible="{Binding HasSearched}" Command="{Binding SearchWebCommand}">
+                                            <TextBlock Text="Search the web" />
+                                        </Button>
+                                        <Button Classes="outlined" Margin="0,4,10,6" IsVisible="{Binding IsBusy}" Command="{Binding CancelCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Data="{StaticResource IconClear}" Width="16" Height="16" />
+                                                <TextBlock Text="Cancel" />
+                                            </StackPanel>
+                                        </Button>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Updates & DLC nested under this game -->
                             <Border Background="{DynamicResource ContainerBrush}" CornerRadius="18" Padding="18,14"
                                     BorderBrush="{DynamicResource OutlineVariantBrush}" BorderThickness="1"

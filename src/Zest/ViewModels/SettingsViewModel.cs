@@ -54,6 +54,9 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial string Theme { get; set; } = "";
 
+    [ObservableProperty]
+    public partial bool UpdateShaderCaches { get; set; }
+
     public SettingsViewModel(AppConfig config)
     {
         OriginalTheme = config.Theme;
@@ -89,6 +92,7 @@ public partial class SettingsViewModel : ViewModelBase
         current.ProdKeys = ProdKeys.Trim();
         current.TitleKeys = TitleKeys.Trim();
         current.Theme = Theme;
+        current.UpdateShaderCaches = UpdateShaderCaches;
         return current;
     }
 
@@ -111,5 +115,6 @@ public partial class SettingsViewModel : ViewModelBase
         }
         ProdKeys = config.ProdKeys;
         TitleKeys = config.TitleKeys;
+        UpdateShaderCaches = config.UpdateShaderCaches;
     }
 }
