@@ -7,9 +7,16 @@ using Zest.Models;
 
 namespace Zest.Services;
 
+/// <summary>One cover the details page's "Find artwork" offers.</summary>
+public sealed record ArtCandidate(string Source, string Label, string Url, string Thumb, int Width, int Height)
+{
+    public string SizeText => Width > 0 ? $"{Width}×{Height}" : "";
+}
+
 /// <summary>
 /// Finds cover art: Switch icons come out of the game files themselves, 3DS/PS2 boxart from
-/// thumbnails.libretro.com. Everything is cached under ~/.cache/zest.
+/// thumbnails.libretro.com, Switch 2 covers from SteamGridDB (with the user's API key) or Wikipedia.
+/// "Find artwork" lists covers from all of them. Everything is cached under ~/.cache/zest.
 /// </summary>
 public sealed partial class ArtService
 {
@@ -22,10 +29,12 @@ public sealed partial class ArtService
     private readonly Lock _switchLock = new();
     private readonly Dictionary<string, Task<Dictionary<string, List<string>>>> _indexes = [];
     private readonly SwitchMetadata? _switch;
+    private readonly string _steamGridDbKey;
 
     public ArtService(AppConfig config)
     {
         _switch = SwitchMetadata.TryCreate(config);
+        _steamGridDbKey = config.SteamGridDbKey.Trim();
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("Zest/0.1 (+game launcher)");
         Directory.CreateDirectory(AppPaths.ArtCache);
         Directory.CreateDirectory(AppPaths.IndexCache);
@@ -54,6 +63,7 @@ public sealed partial class ArtService
         {
             Platform.Switch => await Task.Run(() => FromSwitchFile(game, key)),
             Platform.N3DS => await From3dsAsync(game, key),
+            Platform.Switch2 => await FromWebAsync(game, key),
             _ => await FromLibretroAsync(game, game.Title, key),
         };
 
@@ -64,11 +74,156 @@ public sealed partial class ArtService
         return result with { Title = result.Title ?? cachedTitle };
     }
 
+    // ---- Web covers (Switch 2, and "Find artwork")
+
+    /// <summary>A Switch 2 game's cover: SteamGridDB's top-voted grid when a key is set, else Wikipedia's infobox image.</summary>
+    private async Task<Result> FromWebAsync(Game game, string key)
+    {
+        try
+        {
+            var pick = (await SteamGridDbAsync(game.Title, 1, 1, CancellationToken.None)).FirstOrDefault()
+                ?? (await WikipediaAsync(game.Title, 3, CancellationToken.None)).FirstOrDefault(c => !c.Label.StartsWith("List of", StringComparison.Ordinal));
+            return pick is null ? new Result(null, null) : new Result(await SaveAsync(key, pick.Url), null);
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            return new Result(null, null);
+        }
+    }
+
+    /// <summary>
+    /// Covers for the game from every source: SteamGridDB (with a key), libretro's boxart (matched by title), and
+    /// Wikipedia's article images (its search ranks the game's own page first). Sources that fail are left out.
+    /// </summary>
+    public async Task<List<ArtCandidate>> SearchAsync(Game game, string title, CancellationToken cancel)
+    {
+        var lists = await Task.WhenAll(
+            Try(() => SteamGridDbAsync(title, 3, 6, cancel)),
+            Try(() => LibretroCandidateAsync(game, title)),
+            Try(() => WikipediaAsync(title, 8, cancel)));
+        return lists.SelectMany(l => l).DistinctBy(c => c.Url).ToList();
+
+        static async Task<List<ArtCandidate>> Try(Func<Task<List<ArtCandidate>>> source)
+        {
+            try
+            {
+                return await source();
+            }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+            {
+                return [];
+            }
+        }
+    }
+
+    public bool HasSteamGridDbKey => _steamGridDbKey.Length > 0;
+
+    /// <summary>Makes the chosen cover the game's art (it stays until "Fetch art again").</summary>
+    public async Task<string> UseAsync(Game game, ArtCandidate candidate)
+    {
+        Forget(game, keepTitle: true);
+        return await SaveAsync(CacheKey(game.Path), candidate.Url);
+    }
+
+    public async Task<byte[]> ThumbnailAsync(ArtCandidate candidate, CancellationToken cancel)
+    {
+        await _downloads.WaitAsync(cancel);
+        try
+        {
+            return await _http.GetByteArrayAsync(candidate.Thumb, cancel);
+        }
+        finally
+        {
+            _downloads.Release();
+        }
+    }
+
+    private async Task<string> SaveAsync(string key, string url)
+    {
+        await _downloads.WaitAsync();
+        try
+        {
+            var bytes = await _http.GetByteArrayAsync(url);
+            // (the file's own bytes say what it is: Wikipedia and SteamGridDB serve JPEG and PNG)
+            var ext = bytes.Length > 3 && bytes[0] == 0x89 && bytes[1] == 0x50 ? ".png" : ".jpg";
+            var art = Path.Combine(AppPaths.ArtCache, key + ext);
+            await File.WriteAllBytesAsync(art, bytes);
+            return art;
+        }
+        finally
+        {
+            _downloads.Release();
+        }
+    }
+
+    /// <summary>Wikipedia article images for "&lt;title&gt; video game": the infobox cover of each page, non-free ones too.</summary>
+    private async Task<List<ArtCandidate>> WikipediaAsync(string title, int limit, CancellationToken cancel)
+    {
+        var url = "https://en.wikipedia.org/w/api.php?action=query&format=json&generator=search&prop=pageimages"
+            + "&piprop=original|thumbnail&pithumbsize=240&pilicense=any"
+            + $"&gsrlimit={limit}&gsrsearch=" + Uri.EscapeDataString(title + " video game");
+        using var doc = System.Text.Json.JsonDocument.Parse(await _http.GetStringAsync(url, cancel));
+        if (!doc.RootElement.TryGetProperty("query", out var q) || !q.TryGetProperty("pages", out var pages))
+            return [];
+        var found = new List<(int index, ArtCandidate c)>();
+        foreach (var page in pages.EnumerateObject().Select(p => p.Value))
+        {
+            if (!page.TryGetProperty("original", out var o) || o.GetProperty("source").GetString() is not { } src
+                || src.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+                continue;
+            var thumb = page.TryGetProperty("thumbnail", out var t) ? t.GetProperty("source").GetString() ?? src : src;
+            found.Add((page.GetProperty("index").GetInt32(), new ArtCandidate("Wikipedia", page.GetProperty("title").GetString() ?? "",
+                src, thumb, o.GetProperty("width").GetInt32(), o.GetProperty("height").GetInt32())));
+        }
+        return found.OrderBy(f => f.index).Select(f => f.c).ToList();
+    }
+
+    /// <summary>SteamGridDB portrait grids (600x900 and alike), top-voted first, for the best-matching games.</summary>
+    private async Task<List<ArtCandidate>> SteamGridDbAsync(string title, int games, int perGame, CancellationToken cancel)
+    {
+        if (_steamGridDbKey.Length == 0)
+            return [];
+        const string api = "https://www.steamgriddb.com/api/v2";
+        using var search = await SteamGridDbGetAsync($"{api}/search/autocomplete/{Uri.EscapeDataString(title)}", cancel);
+        var result = new List<ArtCandidate>();
+        foreach (var g in search.RootElement.GetProperty("data").EnumerateArray().Take(games))
+        {
+            var name = g.GetProperty("name").GetString() ?? title;
+            using var grids = await SteamGridDbGetAsync($"{api}/grids/game/{g.GetProperty("id").GetInt64()}?dimensions=600x900,342x482,660x930&types=static", cancel);
+            foreach (var grid in grids.RootElement.GetProperty("data").EnumerateArray().Take(perGame))
+                result.Add(new ArtCandidate("SteamGridDB", name, grid.GetProperty("url").GetString()!,
+                    grid.GetProperty("thumb").GetString()!, grid.GetProperty("width").GetInt32(), grid.GetProperty("height").GetInt32()));
+        }
+        return result;
+    }
+
+    private async Task<System.Text.Json.JsonDocument> SteamGridDbGetAsync(string url, CancellationToken cancel)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _steamGridDbKey);
+        using var response = await _http.SendAsync(request, cancel);
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+            throw new HttpRequestException("SteamGridDB refused the API key");
+        response.EnsureSuccessStatusCode();
+        return System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancel));
+    }
+
+    private async Task<List<ArtCandidate>> LibretroCandidateAsync(Game game, string title)
+    {
+        if (PlatformInfo.LibretroSystem(game.Platform) is not { } system)
+            return [];
+        var name = BestMatch(await GetIndexAsync(system), title);
+        if (name is null)
+            return [];
+        var url = $"{LibretroRoot}/{Uri.EscapeDataString(system)}/Named_Boxarts/{Uri.EscapeDataString(name)}.png";
+        return [new ArtCandidate("libretro", name, url, url, 0, 0)];
+    }
+
     /// <summary>Forgets cached art for one game so the next lookup fetches it again.</summary>
-    public static void Forget(Game game)
+    public static void Forget(Game game, bool keepTitle = false)
     {
         var key = CacheKey(game.Path);
-        foreach (var ext in ArtExtensions.Append(".none").Append(".title"))
+        foreach (var ext in ArtExtensions.Append(".none").Concat(keepTitle ? [] : [".title"]))
             File.Delete(Path.Combine(AppPaths.ArtCache, key + ext));
     }
 

@@ -97,6 +97,79 @@ public partial class MainViewModel : ViewModelBase
 
     public bool IsDetailsOpen => DetailsGame is not null;
 
+    // ---- "Find artwork" on the details page
+
+    public ObservableCollection<ArtCandidateViewModel> ArtCandidates { get; } = [];
+
+    [ObservableProperty]
+    public partial bool IsArtPickerOpen { get; set; }
+
+    [ObservableProperty]
+    public partial string ArtSearchMessage { get; set; } = "";
+
+    private CancellationTokenSource? _artSearch;
+
+    partial void OnDetailsGameChanged(GameViewModel? value) => CloseArtPicker();
+
+    [RelayCommand]
+    private void CloseArtPicker()
+    {
+        _artSearch?.Cancel();
+        IsArtPickerOpen = false;
+        ArtCandidates.Clear();
+        ArtSearchMessage = "";
+    }
+
+    /// <summary>Lists covers for the game from SteamGridDB (with a key), Wikipedia and libretro, thumbnails loading as they come.</summary>
+    [RelayCommand]
+    private async Task FindArtworkAsync(GameViewModel? game)
+    {
+        if (game is null)
+            return;
+        CloseArtPicker();
+        IsArtPickerOpen = true;
+        ArtSearchMessage = "Searching…";
+        var cancel = (_artSearch = new CancellationTokenSource()).Token;
+        var art = _art;
+        var title = game.Title;
+        var found = await art.SearchAsync(game.Game, title, cancel);
+        if (cancel.IsCancellationRequested)
+            return;
+        foreach (var c in found)
+            ArtCandidates.Add(new ArtCandidateViewModel(c));
+        ArtSearchMessage = found.Count == 0 ? $"No covers found for \"{title}\"."
+            : $"{found.Count} covers found. Click one to use it." + (art.HasSteamGridDbKey ? "" : " Add a SteamGridDB key in Settings for more.");
+        await Parallel.ForEachAsync(ArtCandidates.ToList(), new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancel }, async (vm, token) =>
+        {
+            try
+            {
+                await using var stream = new MemoryStream(await art.ThumbnailAsync(vm.Candidate, token));
+                var bitmap = Bitmap.DecodeToWidth(stream, 240, BitmapInterpolationMode.HighQuality);
+                await Dispatcher.UIThread.InvokeAsync(() => vm.Thumb = bitmap);
+            }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException or ArgumentException or InvalidOperationException) { }
+        }).ContinueWith(_ => { });
+    }
+
+    [RelayCommand]
+    private async Task UseArtworkAsync(ArtCandidateViewModel? candidate)
+    {
+        if (candidate is null || DetailsGame is not { } game)
+            return;
+        ArtSearchMessage = "Saving the cover…";
+        try
+        {
+            await _art.UseAsync(game.Game, candidate.Candidate);
+            await LoadArtForAsync(game, _art);
+            CloseArtPicker();
+            Status = $"New cover for {game.Title} from {candidate.Candidate.Source}. \"Fetch art again\" goes back to the default.";
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or IOException)
+        {
+            ArtSearchMessage = $"Couldn't download that cover: {e.Message}";
+        }
+    }
+
     /// <summary>The Forge page (PKForge's save editor and Bank); created on first open.</summary>
     [ObservableProperty]
     public partial ForgeViewModel? Forge { get; set; }
@@ -587,7 +660,7 @@ public partial class MainViewModel : ViewModelBase
             try
             {
                 await using var stream = File.OpenRead(result.ArtPath);
-                bitmap = Bitmap.DecodeToWidth(stream, 360, BitmapInterpolationMode.HighQuality);
+                bitmap = Bitmap.DecodeToWidth(stream, 720, BitmapInterpolationMode.HighQuality);
             }
             catch (Exception)
             {
