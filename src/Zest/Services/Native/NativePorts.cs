@@ -155,8 +155,67 @@ public static class NativePorts
 
     /// <summary>The setup has finished a build in the game folder.</summary>
     public static bool IsGameBuilt(NativePort port) =>
-        port.Setup is { } s && File.Exists(Path.Combine(GameFolder(port), s.GameExecutable)) &&
-        File.Exists(Path.Combine(GameFolder(port), "totk-install.json"));
+        port.Extract is { } x
+            ? x.ReadyFiles.All(f => File.Exists(Path.Combine(AppPaths.ExpandHome(x.GameDir), f)))
+            : port.Setup is { } s && File.Exists(Path.Combine(GameFolder(port), s.GameExecutable)) &&
+              File.Exists(Path.Combine(GameFolder(port), "totk-install.json"));
+
+    // ---- ports that set up a folder Zest prepares (NativePort.Extract: Savage Wind)
+
+    /// <summary>Writes exefs/ and romfs/ of the dump with its update applied into the port's game files folder
+    /// (through a .partial folder), for the port's own setup to import.</summary>
+    public static void PreparePatched(NativePort port, string prodKeys, string titleKeys, string dump, string update,
+        IProgress<(long done, long total)>? progress, CancellationToken cancel)
+    {
+        var folder = GameFilesFolder(port);
+        var staging = folder + ".partial";
+        if (Directory.Exists(staging))
+            Directory.Delete(staging, recursive: true);
+        if (Directory.Exists(folder))
+            Directory.Delete(folder, recursive: true);
+        using (var image = new GameImage(prodKeys, titleKeys, dump, update))
+            image.WriteFolders(staging, progress, cancel);
+        var missing = port.ExeFsFiles.Where(f => !File.Exists(Path.Combine(staging, "exefs", f))).ToList();
+        if (missing.Count > 0)
+            throw new InvalidDataException($"The extracted ExeFS is missing {string.Join(", ", missing)}.");
+        Directory.Move(staging, folder);
+    }
+
+    /// <summary>Runs the release with the folder in its environment variable: it imports the files (hard links on
+    /// the same file system) and builds the game code, then exits. Each output line goes to <paramref name="line"/>
+    /// and to setup.log. Zest's copy is deleted once the port reports the game ready.</summary>
+    public static async Task RunFolderSetupAsync(NativePort port, IProgress<string> line, CancellationToken cancel)
+    {
+        var x = port.Extract ?? throw new InvalidOperationException($"{port.Name} has no folder setup.");
+        var release = Installed(port) ?? throw new InvalidOperationException($"{port.Name} isn't installed.");
+        var psi = new ProcessStartInfo(release.AppImage)
+        {
+            UseShellExecute = false,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            WorkingDirectory = Path.GetDirectoryName(release.AppImage)!,
+        };
+        psi.Environment[x.EnvVar] = GameFilesFolder(port);
+        if (!File.Exists("/usr/bin/fusermount3") && !File.Exists("/usr/bin/fusermount"))
+            psi.Environment["APPIMAGE_EXTRACT_AND_RUN"] = "1";
+        using var log = new StreamWriter(Path.Combine(Root(port), "setup.log"), append: false);
+        using var process = Process.Start(psi) ?? throw new InvalidOperationException($"Could not start {port.Name}.");
+        using var reg = cancel.Register(() => { try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { } });
+        async Task Pump(StreamReader r)
+        {
+            while (await r.ReadLineAsync() is { } l)
+            {
+                lock (log)
+                    log.WriteLine(l);
+                line.Report(l);
+            }
+        }
+        await Task.WhenAll(Pump(process.StandardError), Pump(process.StandardOutput), process.WaitForExitAsync());
+        cancel.ThrowIfCancellationRequested();
+        if (!IsGameBuilt(port))
+            throw new IOException($"{port.Name}'s setup ended without the game ready (exit code {process.ExitCode}); see {Path.Combine(Root(port), "setup.log")}.");
+        RemoveGameFiles(port);
+    }
 
     /// <summary>The release's setup, unpacked from its AppImage once (release/&lt;tag&gt;/setup).</summary>
     private static async Task<string> UnpackSetupAsync(InstalledRelease release, CancellationToken cancel)

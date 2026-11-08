@@ -37,6 +37,10 @@ public sealed record NativePort
     /// with the player's dump (and update) and shows its progress; null for ports with their own setup screen.</summary>
     public CliSetup? Setup { get; init; }
 
+    /// <summary>Ports whose release sets up a folder Zest prepares (exefs/ and romfs/ with the update applied) when
+    /// started with an environment variable naming it (Savage Wind); null otherwise.</summary>
+    public FolderSetup? Extract { get; init; }
+
     public string ProjectUrl => $"https://github.com/{Repo}";
     public string TitleIdText => TitleId.ToString("X16");
 }
@@ -53,6 +57,20 @@ public sealed record CliSetup
     public required IReadOnlyDictionary<string, double> StepWeights { get; init; }
     /// <summary>The setup's description of a step, for the progress line.</summary>
     public required IReadOnlyDictionary<string, string> StepNames { get; init; }
+}
+
+/// <summary>A release that sets up the game from a folder given in an environment variable, headless, then exits
+/// (Savage Wind: <c>SAVAGEWIND_LAUNCHER_EXTRACT=&lt;folder&gt;</c> copies exefs/ and romfs/ - hard links on the same file
+/// system - and builds the game code on this PC).</summary>
+public sealed record FolderSetup
+{
+    public required string EnvVar { get; init; }
+    /// <summary>The update versions the port is made for (it needs one, applied to the folder by Zest).</summary>
+    public required IReadOnlySet<string> UpdateVersions { get; init; }
+    /// <summary>Where the port keeps the set-up game (may start with ~).</summary>
+    public required string GameDir { get; init; }
+    /// <summary>Files in GameDir that mean the game is set up and built.</summary>
+    public required IReadOnlyList<string> ReadyFiles { get; init; }
 }
 
 /// <summary>
@@ -136,6 +154,34 @@ public static class NativePortCatalog
                     ["lift"] = "Translating the game code", ["compile"] = "Compiling the game", ["prepare"] = "Preparing shaders",
                     ["dlss"] = "DLSS", ["cleanup"] = "Cleaning up",
                 },
+            },
+        },
+
+        // github.com/Revivedx/SavageWindRecomp README: Breath of the Wild 1.9.0 (base + update; DLC 3.0 optional),
+        // Linux x86-64 AppImage, the game code built on the player's PC at setup; MIT. Built on LAS Recomp. Chosen over
+        // our own botw19 port (2026-11-07): it plays the Great Plateau at 60 fps, a tester finished Vah Ruta.
+        new()
+        {
+            Id = "savagewind",
+            Name = "Savage Wind",
+            Author = "Revivedx",
+            Repo = "Revivedx/SavageWindRecomp",
+            Platform = Platform.Switch,
+            TitleId = 0x01007EF00011E000,
+            Versions = new HashSet<string> { "1.0.0" },
+            ExeFsFiles = ["main", "main.npdm"],
+            Asset = new Regex(@"^Savage_Wind-.+-x86_64\.AppImage$"),
+            Status = "Alpha",
+            Licence = "MIT",
+            Summary = "Breath of the Wild 1.9.0 natively on Vulkan: 60 fps, PC graphics options, any controller, keyboard and mouse.",
+            Credit = "Savage Wind Recomp by Revivedx and contributors (MIT), built on LAS Recomp. Its README says it is made almost "
+                + "entirely with AI (Claude Code), directed, tested and reviewed by a human. Not affiliated with Nintendo.",
+            Extract = new FolderSetup
+            {
+                EnvVar = "SAVAGEWIND_LAUNCHER_EXTRACT",
+                UpdateVersions = new HashSet<string> { "1.9.0" },
+                GameDir = "~/.local/share/savagewind/extracted",
+                ReadyFiles = ["exefs/main", "swgame.so"],
             },
         },
     ];

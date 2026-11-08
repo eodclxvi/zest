@@ -343,7 +343,8 @@ public partial class MainViewModel : ViewModelBase
         foreach (var (game, port, app) in matches.Where(m => m.port is not null).DistinctBy(m => m.port!.Id))
         {
             game.NativePort = new NativePortViewModel(port!, game, app, () => Services.Native.SwitchContent.TryCreate(_config),
-                () => string.IsNullOrEmpty(_config.ProdKeys) ? null : AppPaths.ExpandHome(_config.ProdKeys));
+                () => string.IsNullOrEmpty(_config.ProdKeys) ? null : AppPaths.ExpandHome(_config.ProdKeys),
+                () => string.IsNullOrEmpty(_config.TitleKeys) ? null : AppPaths.ExpandHome(_config.TitleKeys));
             _ = game.NativePort.CheckForUpdateAsync();
         }
         // Ports built on this PC from source ("Install native")

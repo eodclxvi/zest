@@ -63,6 +63,17 @@ public sealed class GameImage : IDisposable
         }
     }
 
+    /// <summary>exefs/ and romfs/ as folders, the update applied (ports that read loose files: Savage Wind).</summary>
+    public void WriteFolders(string dir, IProgress<(long done, long total)>? progress, CancellationToken cancel)
+    {
+        WriteExeFs(System.IO.Path.Combine(dir, "exefs"));
+        using var romfs = _patch is null
+            ? _base.OpenFileSystem(NcaSectionType.Data, IntegrityCheckLevel.ErrorOnInvalid)
+            : _base.OpenFileSystemWithPatch(_patch, NcaSectionType.Data, IntegrityCheckLevel.ErrorOnInvalid);
+        long done = 0, total = SwitchContent.TotalSize(romfs);
+        SwitchContent.CopyTree(romfs, System.IO.Path.Combine(dir, "romfs"), total, ref done, progress, cancel);
+    }
+
     /// <summary>Writes romfs.bin through a .part file (a cancelled write leaves nothing behind).</summary>
     public void WriteRomFs(string output, IProgress<(long done, long total)>? progress, CancellationToken cancel)
     {

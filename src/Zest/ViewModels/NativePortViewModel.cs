@@ -13,13 +13,16 @@ public partial class NativePortViewModel : ViewModelBase
     private CancellationTokenSource? _work;
 
     private readonly Func<string?> _keys;
+    private readonly Func<string?> _titleKeys;
 
-    public NativePortViewModel(NativePort port, GameViewModel game, SwitchApplication app, Func<SwitchContent?> content, Func<string?>? keys = null)
+    public NativePortViewModel(NativePort port, GameViewModel game, SwitchApplication app, Func<SwitchContent?> content, Func<string?>? keys = null,
+        Func<string?>? titleKeys = null)
     {
         Port = port;
         _game = game;
         _content = content;
         _keys = keys ?? (() => null);
+        _titleKeys = titleKeys ?? (() => null);
         DumpVersion = app.DisplayVersion;
         Refresh();
     }
@@ -59,9 +62,10 @@ public partial class NativePortViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(CanPlay), nameof(SetupText))]
     public partial bool GameBuilt { get; set; }
 
-    public bool CanPlay => Release is not null && (Port.Setup is null || GameBuilt);
+    private bool BuildsGame => Port.Setup is not null || Port.Extract is not null;
+    public bool CanPlay => Release is not null && (!BuildsGame || GameBuilt);
     public bool HasGameFiles => Files is not null;
-    public string SetupText => Port.Setup is not null
+    public string SetupText => BuildsGame
         ? Release is null || !GameBuilt ? "Install native" : UpdateTag is not null ? $"Update to {UpdateTag}" : "Check for update"
         : Release is null ? "Set up native port"
         : Files is null ? "Prepare game files"
@@ -126,7 +130,37 @@ public partial class NativePortViewModel : ViewModelBase
                 var steps = new Progress<(double percent, string text)>(p => { Progress = p.percent; Message = p.text; });
                 await NativePorts.RunSetupAsync(Port, keys, _game.Game.Path, update.Path, steps, _work.Token);
             }
-            else if (Files is null)
+            else if (Port.Extract is { } fx && (changed || !GameBuilt))
+            {
+                // The release sets the game up from loose exefs/ + romfs/ with the update applied: Zest writes that
+                // folder (several GB, then hard-linked by the port), runs the release's headless setup (it imports the
+                // files and builds the game code on this PC), and deletes its own copy afterwards
+                if (Update is not { } update)
+                    throw new InvalidDataException($"{Port.Name} needs the game's update ({string.Join(", ", fx.UpdateVersions)}): add it to your Switch games folder.");
+                if (update.Version is { } v && !fx.UpdateVersions.Contains(v))
+                    throw new InvalidDataException($"{Port.Name} takes update {string.Join(", ", fx.UpdateVersions)}; yours is {v}.");
+                var keys = _keys() ?? throw new InvalidDataException("Zest needs your prod.keys (Settings).");
+                changed = true;
+                if (!GameBuilt || !Directory.Exists(GameFilesPath))
+                {
+                    Message = "Unpacking the game with its update (exefs and romfs, about 15 GB)…";
+                    var extract = new Progress<(long done, long total)>(p => Progress = p.total > 0 ? 50.0 * p.done / p.total : 0);
+                    var token = _work.Token;
+                    await Task.Run(() => NativePorts.PreparePatched(Port, keys, _titleKeys() ?? "", _game.Game.Path, update.Path, extract, token), token);
+                }
+                Progress = 50;
+                var started = DateTime.Now;
+                Message = $"{Port.Name} is setting up the game and building its code on this PC (this takes a while)…";
+                var lines = new Progress<string>(l =>
+                {
+                    var minutes = (DateTime.Now - started).TotalMinutes;
+                    Progress = Math.Min(99, 50 + minutes * 2);  // (the build reports no progress of its own)
+                    if (l.StartsWith("[launcher]", StringComparison.Ordinal))
+                        Message = $"{Port.Name} setup: {l["[launcher]".Length..].Trim()}";
+                });
+                await NativePorts.RunFolderSetupAsync(Port, lines, _work.Token);
+            }
+            else if (Port.Extract is null && Files is null)
             {
                 changed = true;
                 Message = "Extracting the base game's exefs and romfs (several GB)…";
@@ -136,7 +170,7 @@ public partial class NativePortViewModel : ViewModelBase
             }
 
             UpdateTag = null;
-            Message = changed && Port.Setup is not null
+            Message = changed && BuildsGame
                 ? $"Installed. Press Play native to start {Port.Name}; its settings are in its in-game menu."
                 : changed
                 ? $"Ready. On the first Play, choose the game files folder in {Port.Name}'s setup screen (Play native copies its path for you)."
