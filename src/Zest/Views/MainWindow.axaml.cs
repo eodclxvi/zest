@@ -32,6 +32,11 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         Carousel.AddHandler(PointerWheelChangedEvent, OnCarouselWheel, RoutingStrategies.Tunnel);
         Carousel.SizeChanged += (_, _) => LayoutCarousel(animate: false);
+        // Cover size follows the monitor the window is on: checked when it opens, moves, resizes or changes scale.
+        Opened += (_, _) => UpdateCarouselSize();
+        PositionChanged += (_, _) => UpdateCarouselSize();
+        Resized += (_, _) => UpdateCarouselSize();
+        ScalingChanged += (_, _) => UpdateCarouselSize();
         Closed += (_, _) => _gamepad.Dispose();
     }
 
@@ -342,6 +347,28 @@ public partial class MainWindow : Window
     }
 
     // ---- Carousel ----
+
+    private const double BaseCardWidth = 300, BaseCardHeight = 380, BaseScreenHeight = 720;
+
+    /// <summary>
+    /// Sizes the carousel covers for the monitor the window is on: 300 x 380 at 720 pixels tall (HDMI-A-1, 1920x720),
+    /// growing 60% of the way with the height (x1.3 at 1080, x1.6 at 1440, at most x1.8), and never taller than 62% of
+    /// the window, so a small window on a big monitor keeps room for the title and buttons.
+    /// </summary>
+    private void UpdateCarouselSize()
+    {
+        if (DataContext is not MainViewModel vm || Screens.ScreenFromWindow(this) is not { } screen)
+            return;
+        var screenHeight = screen.Bounds.Height / screen.Scaling;
+        var factor = Math.Clamp(1 + 0.6 * (screenHeight - BaseScreenHeight) / BaseScreenHeight, 1, 1.8);
+        var height = Math.Round(Math.Max(BaseCardHeight, Math.Min(BaseCardHeight * factor, ClientSize.Height * 0.62)));
+        if (Math.Abs(vm.CarouselCardHeight - height) < 1)
+            return;
+        vm.CarouselCardHeight = height;
+        vm.CarouselCardWidth = Math.Round(height * BaseCardWidth / BaseCardHeight);
+        vm.CarouselInitialsSize = Math.Round(72 * height / BaseCardHeight);
+        Dispatcher.UIThread.Post(() => LayoutCarousel(animate: false), DispatcherPriority.Loaded);
+    }
 
     /// <summary>Pads the strip so the first and last covers can sit in the middle, then centers the selection.</summary>
     private void LayoutCarousel(bool animate)

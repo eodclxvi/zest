@@ -293,7 +293,9 @@
                         </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:GameViewModel">
-                                <Border Classes="card" Width="300" Height="380" Padding="7">
+                                <Border Classes="card" Padding="7"
+                                        Width="{Binding $parent[Window].((vm:MainViewModel)DataContext).CarouselCardWidth}"
+                                        Height="{Binding $parent[Window].((vm:MainViewModel)DataContext).CarouselCardHeight}">
                                     <Border.ContextMenu>
                                         <ContextMenu>
                                             <MenuItem Header="Play" Click="OnMenuPlay">
@@ -317,7 +319,7 @@
                                     <Panel>
                                         <Border CornerRadius="18" ClipToBounds="True" Background="{DynamicResource ContainerHighestBrush}">
                                             <Panel>
-                                                <TextBlock Classes="title" Text="{Binding Initials}" FontSize="72"
+                                                <TextBlock Classes="title" Text="{Binding Initials}" FontSize="{Binding $parent[Window].((vm:MainViewModel)DataContext).CarouselInitialsSize}"
                                                            Foreground="{DynamicResource OutlineBrush}"
                                                            HorizontalAlignment="Center" VerticalAlignment="Center"
                                                            IsVisible="{Binding !HasArt}" />
