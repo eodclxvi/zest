@@ -49,6 +49,9 @@ public sealed class AppConfig
     /// <summary>Before a Lichii game starts, merge its Lichii Shader Sync pack when the pack has grown.</summary>
     public bool UpdateShaderCaches { get; set; } = true;
 
+    /// <summary>Optional SteamGridDB API key (steamgriddb.com, Preferences → API): adds its covers to "Find artwork".</summary>
+    public string SteamGridDbKey { get; set; } = "";
+
     /// <summary>Game paths the user chose to hide from the library (e.g. a duplicate of an installed title).</summary>
     public HashSet<string> Hidden { get; set; } = [];
 

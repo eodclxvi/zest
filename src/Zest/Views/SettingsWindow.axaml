@@ -152,6 +152,16 @@
 
                 <Border Classes="section">
                     <StackPanel Spacing="8">
+                        <TextBlock Classes="title" FontSize="18" Text="Artwork" />
+                        <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                                   Text="Find artwork (on a game's details page) searches Wikipedia and libretro. A free SteamGridDB API key adds its large community covers, and Switch 2 games then take their art from there: steamgriddb.com → Preferences → API." />
+                        <TextBlock Classes="muted" FontSize="12" Text="SteamGridDB API key (optional)" />
+                        <TextBox Text="{Binding SteamGridDbKey}" FontFamily="monospace" FontSize="13" PasswordChar="•" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="section">
+                    <StackPanel Spacing="8">
                         <TextBlock Classes="title" FontSize="18" Text="Shader caches" />
                         <CheckBox IsChecked="{Binding UpdateShaderCaches}">
                             <TextBlock Text="Update Lichii shader caches before playing" />

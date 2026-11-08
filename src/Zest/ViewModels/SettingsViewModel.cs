@@ -57,6 +57,9 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool UpdateShaderCaches { get; set; }
 
+    [ObservableProperty]
+    public partial string SteamGridDbKey { get; set; } = "";
+
     public SettingsViewModel(AppConfig config)
     {
         OriginalTheme = config.Theme;
@@ -93,6 +96,7 @@ public partial class SettingsViewModel : ViewModelBase
         current.TitleKeys = TitleKeys.Trim();
         current.Theme = Theme;
         current.UpdateShaderCaches = UpdateShaderCaches;
+        current.SteamGridDbKey = SteamGridDbKey.Trim();
         return current;
     }
 
@@ -116,5 +120,6 @@ public partial class SettingsViewModel : ViewModelBase
         ProdKeys = config.ProdKeys;
         TitleKeys = config.TitleKeys;
         UpdateShaderCaches = config.UpdateShaderCaches;
+        SteamGridDbKey = config.SteamGridDbKey;
     }
 }
