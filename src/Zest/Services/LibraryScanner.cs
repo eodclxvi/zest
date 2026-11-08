@@ -67,9 +67,9 @@ public static class LibraryScanner
         var port = game.Local!;
         if (port.ArtFrom.Length > 0 && File.Exists(AppPaths.ExpandHome(port.ArtFrom)))
             return;
-        var want = Normalize(port.Title);
+        var want = TitleKey(port.Title);
         var dump = library.FirstOrDefault(g => g.Local is null && g.Platform == port.Platform && g.Kind == ContentKind.Game
-            && Normalize(Game.TitleFromFileName(g.Path)) == want);
+            && TitleKey(Game.TitleFromFileName(g.Path)) == want);
         if (dump is null)
             return;
         port.ArtFrom = dump.Path;
@@ -77,7 +77,7 @@ public static class LibraryScanner
     }
 
     /// <summary>"Pokémon Sword" and "Pokemon Sword" alike: accents, case and punctuation dropped.</summary>
-    private static string Normalize(string title) =>
+    public static string TitleKey(string title) =>
         new(title.Normalize(System.Text.NormalizationForm.FormD)
             .Where(c => char.IsLetterOrDigit(c) && System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
             .Select(char.ToLowerInvariant).ToArray());

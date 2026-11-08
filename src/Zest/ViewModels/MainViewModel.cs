@@ -290,11 +290,12 @@ public partial class MainViewModel : ViewModelBase
         }).ToList();
         foreach (var game in _all)
             game.Convert?.Refresh();
+        NestEmulatorCopies();
         UpdateCounts();
         UpdateContinue();
         ApplyFilter();
         IsScanning = false;
-        Status = $"{_all.Count(g => !g.IsHidden)} games";
+        Status = $"{_all.Count(g => !g.IsHidden && g.NestedUnder is null)} games";
 
         await Task.WhenAll(LoadArtAsync(generation), FindPokemonSavesAsync(generation), FindNativePortsAsync(generation));
     }
@@ -381,6 +382,34 @@ public partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>After "Install native": the build becomes its own game in the library and the emulator copy is hidden.</summary>
+    /// <summary>
+    /// A native build lists the emulator dumps of its game on its details page (Play there runs them in the
+    /// emulator) instead of beside it in the library: the dump it takes its art from, and dumps of the same title
+    /// (a redump). Those dumps are taken off the Hidden list, where builds before this one put them.
+    /// </summary>
+    private void NestEmulatorCopies()
+    {
+        var hiddenChanged = false;
+        foreach (var native in _all.Where(g => g.Game.Local is not null))
+        {
+            var port = native.Game.Local!;
+            var key = LibraryScanner.TitleKey(port.Title);
+            var artFrom = AppPaths.ExpandHome(port.ArtFrom);
+            foreach (var copy in _all.Where(g => g.Game.Local is null && g.NestedUnder is null && g.Game.Platform == port.Platform
+                         && g.Game.Kind == ContentKind.Game
+                         && (g.Game.Path == artFrom || LibraryScanner.TitleKey(Game.TitleFromFileName(g.Game.Path)) == key)))
+            {
+                copy.NestedUnder = native;
+                native.EmulatorCopies.Add(copy);
+                if (_config.Hidden.Remove(copy.Game.Path))
+                    hiddenChanged = true;
+                copy.IsHidden = false;
+            }
+        }
+        if (hiddenChanged)
+            _config.Save();
+    }
+
     private async Task RegisterNativeBuildAsync(Services.Native.SourcePort port, GameViewModel game)
     {
         var exe = Services.Native.NativeBuilder.Executable(port);
@@ -395,8 +424,6 @@ public partial class MainViewModel : ViewModelBase
                 ArtFrom = game.Game.Path,
                 Log = Path.Combine(Services.Native.NativeBuilder.Root(port), "play.log"),
             });
-        if (!_config.Hidden.Contains(game.Game.Path))
-            _config.Hidden.Add(game.Game.Path);
         _config.Save();
         await RefreshAsync();
     }
@@ -488,9 +515,10 @@ public partial class MainViewModel : ViewModelBase
     {
         foreach (var chip in Chips)
         {
-            chip.Count = chip.IsHiddenChip ? _all.Count(g => g.IsHidden)
-                : chip.Platform is { } p ? _all.Count(g => !g.IsHidden && g.Game.Platform == p)
-                : _all.Count(g => !g.IsHidden);
+            var shown = _all.Where(g => g.NestedUnder is null);
+            chip.Count = chip.IsHiddenChip ? shown.Count(g => g.IsHidden)
+                : chip.Platform is { } p ? shown.Count(g => !g.IsHidden && g.Game.Platform == p)
+                : shown.Count(g => !g.IsHidden);
         }
         // Leaving the Hidden chip selected after unhiding the last game would show an empty page.
         if (Chips.First(c => c.IsHiddenChip) is { IsSelected: true, Count: 0 })
@@ -505,7 +533,7 @@ public partial class MainViewModel : ViewModelBase
         var chip = Chips.FirstOrDefault(c => c.IsSelected) ?? Chips[0];
         var query = SearchText.Trim();
 
-        IEnumerable<GameViewModel> list = _all.Where(g => g.IsHidden == chip.IsHiddenChip);
+        IEnumerable<GameViewModel> list = _all.Where(g => g.NestedUnder is null && g.IsHidden == chip.IsHiddenChip);
         if (chip.Platform is { } p)
             list = list.Where(g => g.Game.Platform == p);
         if (query.Length > 0)
