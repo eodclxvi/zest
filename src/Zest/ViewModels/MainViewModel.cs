@@ -136,6 +136,17 @@ public partial class MainViewModel : ViewModelBase
 
     public bool IsGridView => View == ViewMode.Grid;
     public bool IsCarouselView => View == ViewMode.Carousel;
+
+    // Carousel cover size: 300 x 380 on a 720-pixel-tall monitor, larger on taller ones (the window sets it from
+    // the monitor it is on: MainWindow.UpdateCarouselSize).
+    [ObservableProperty]
+    public partial double CarouselCardWidth { get; set; } = 300;
+
+    [ObservableProperty]
+    public partial double CarouselCardHeight { get; set; } = 380;
+
+    [ObservableProperty]
+    public partial double CarouselInitialsSize { get; set; } = 72;
     public string ViewToggleTip => IsGridView ? "Carousel view (V)" : "Grid view (V)";
 
     /// <summary>True while any emulator launched from Zest is still open.</summary>
