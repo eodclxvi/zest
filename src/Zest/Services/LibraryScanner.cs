@@ -48,11 +48,39 @@ public static class LibraryScanner
         foreach (var port in config.LocalPorts)
         {
             var exe = AppPaths.ExpandHome(port.Executable);
-            if (File.Exists(exe) && seen.Add(exe))
-                library.Add(new Game { Path = exe, Platform = port.Platform, Title = port.Title, Local = port });
+            if (!File.Exists(exe) || !seen.Add(exe))
+                continue;
+            var game = new Game { Path = exe, Platform = port.Platform, Title = port.Title, Local = port };
+            RepairArtFrom(game, library);
+            library.Add(game);
         }
         return library;
     }
+
+    /// <summary>
+    /// A native build's icon comes from a dump of the game (LocalPort.ArtFrom). When that file was renamed or
+    /// redumped, the library's base game of the same title ("Pokémon Sword" = "Pokemon Sword [0100ABF008968000][v0]")
+    /// takes its place, and the cached "no art" mark is dropped so the icon is read again.
+    /// </summary>
+    private static void RepairArtFrom(Game game, List<Game> library)
+    {
+        var port = game.Local!;
+        if (port.ArtFrom.Length > 0 && File.Exists(AppPaths.ExpandHome(port.ArtFrom)))
+            return;
+        var want = Normalize(port.Title);
+        var dump = library.FirstOrDefault(g => g.Local is null && g.Platform == port.Platform && g.Kind == ContentKind.Game
+            && Normalize(Game.TitleFromFileName(g.Path)) == want);
+        if (dump is null)
+            return;
+        port.ArtFrom = dump.Path;
+        ArtService.Forget(game);
+    }
+
+    /// <summary>"Pokémon Sword" and "Pokemon Sword" alike: accents, case and punctuation dropped.</summary>
+    private static string Normalize(string title) =>
+        new(title.Normalize(System.Text.NormalizationForm.FormD)
+            .Where(c => char.IsLetterOrDigit(c) && System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
+            .Select(char.ToLowerInvariant).ToArray());
 
     /// <summary>Applications installed into Azahar's virtual SD card (title/00040000/&lt;id&gt;/content/*.app).</summary>
     private static IEnumerable<Game> AzaharInstalled()
