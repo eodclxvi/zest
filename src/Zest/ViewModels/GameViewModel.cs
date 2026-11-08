@@ -97,6 +97,14 @@ public partial class GameViewModel : ViewModelBase
 
     public bool CanConvert => Convert is not null;
 
+    private ShaderCacheViewModel? _shaderCache;
+
+    /// <summary>The details page's shader cache search, made when the page first shows it.</summary>
+    public ShaderCacheViewModel ShaderCache => _shaderCache ??= new ShaderCacheViewModel(this);
+
+    /// <summary>Updates and DLC listed on their own have no shaders to cache.</summary>
+    public bool CanSearchShaders => !IsAddOn;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HideActionText))]
     public partial bool IsHidden { get; set; }

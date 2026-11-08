@@ -430,6 +430,9 @@ public partial class MainViewModel : ViewModelBase
         Status = $"Playing {game.Title} {game.PlayedWith}";
         try
         {
+            if (_config.UpdateShaderCaches
+                && await ShaderCaches.BeforeLaunchAsync(game.Game, new Progress<string>(m => Status = $"{game.Title}: {m}")) is { } shaders)
+                Status = $"Playing {game.Title} {game.PlayedWith} · {shaders}";
             var played = await GameLauncher.RunAsync(game.Game, _config);
             _stats.AddTime(game.Game.Path, played);
             game.UpdateStats(_stats.Get(game.Game.Path));
