@@ -69,7 +69,23 @@ public sealed class AppConfig
         try
         {
             if (File.Exists(AppPaths.ConfigFile))
-                return JsonSerializer.Deserialize<AppConfig>(File.ReadAllText(AppPaths.ConfigFile), Json) ?? Detect();
+            {
+                var loaded = JsonSerializer.Deserialize<AppConfig>(File.ReadAllText(AppPaths.ConfigFile), Json);
+                if (loaded is null)
+                    return Detect();
+                // a platform added since the config was written (Switch 2): its detected emulator
+                var detectedNow = Detect();
+                var added = false;
+                foreach (var p in PlatformInfo.All)
+                    if (!loaded.Emulators.ContainsKey(p) && detectedNow.Emulators.TryGetValue(p, out var e))
+                    {
+                        loaded.Emulators[p] = e;
+                        added = true;
+                    }
+                if (added)
+                    loaded.Save();
+                return loaded;
+            }
         }
         catch (JsonException)
         {
@@ -98,6 +114,15 @@ public sealed class AppConfig
         {
             Command = $"{(File.Exists(eden) ? Quote(eden) : "eden")} -g {{rom}}",
             Folders = QtGameDirs(Path.Combine(home, ".config/eden/qt-config.ini")),
+        };
+
+        // Lichii (Switch 2): ~/.local/bin/lichii runs the AppImage with its own data root (it keeps its files in
+        // "eden" folders, like Eden: the launcher points XDG_* at ~/.local/share/lichii-root so Eden's stay untouched)
+        var lichii = Path.Combine(home, ".local/bin/lichii");
+        c.Emulators[Platform.Switch2] = new EmulatorConfig
+        {
+            Command = $"{(File.Exists(lichii) ? Quote(lichii) : "lichii")} -g {{rom}}",
+            Folders = QtGameDirs(Path.Combine(home, ".local/share/lichii-root/config/eden/qt-config.ini")),
         };
 
         var azaharFlatpak = Directory.Exists(Path.Combine(home, ".var/app/org.azahar_emu.Azahar"));
