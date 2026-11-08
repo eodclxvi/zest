@@ -5,15 +5,18 @@ public enum Platform
     Switch,
     N3DS,
     PS2,
+    /// <summary>Nintendo Switch 2 (.nup), played with Lichii (github.com/zortos293/Lichii).</summary>
+    Switch2,
 }
 
 public static class PlatformInfo
 {
-    public static readonly Platform[] All = [Platform.Switch, Platform.N3DS, Platform.PS2];
+    public static readonly Platform[] All = [Platform.Switch, Platform.Switch2, Platform.N3DS, Platform.PS2];
 
     public static string Name(Platform p) => p switch
     {
         Platform.Switch => "Nintendo Switch",
+        Platform.Switch2 => "Nintendo Switch 2",
         Platform.N3DS => "Nintendo 3DS",
         Platform.PS2 => "PlayStation 2",
         _ => p.ToString(),
@@ -22,6 +25,7 @@ public static class PlatformInfo
     public static string Short(Platform p) => p switch
     {
         Platform.Switch => "Switch",
+        Platform.Switch2 => "Switch 2",
         Platform.N3DS => "3DS",
         Platform.PS2 => "PS2",
         _ => p.ToString(),
@@ -30,6 +34,7 @@ public static class PlatformInfo
     public static string Emulator(Platform p) => p switch
     {
         Platform.Switch => "Eden",
+        Platform.Switch2 => "Lichii",
         Platform.N3DS => "Azahar",
         Platform.PS2 => "PCSX2",
         _ => p.ToString(),
@@ -38,6 +43,7 @@ public static class PlatformInfo
     public static IReadOnlySet<string> Extensions(Platform p) => p switch
     {
         Platform.Switch => new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".nsp", ".xci", ".nsz", ".xcz", ".nro" },
+        Platform.Switch2 => new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".nup" },
         Platform.N3DS => new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".3ds", ".cci", ".cxi", ".3dsx", ".z3ds", ".zcci", ".zcxi", ".z3dsx" },
         // .bin is left out on purpose: PS2 BIOS dumps use it too.
         Platform.PS2 => new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".iso", ".chd", ".cso", ".zso", ".cue", ".gz", ".mdf", ".elf" },
