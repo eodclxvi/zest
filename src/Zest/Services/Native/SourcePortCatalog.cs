@@ -82,14 +82,6 @@ public static class SourcePortCatalog
             Status = "Playable",
             Summary = "Pokémon Scarlet 4.0.0 on Violet's port: 30 fps with supersampling, with The Teal Mask and The Indigo Disk.",
         },
-        new()
-        {
-            Id = "botw", Name = "BotW Recomp", Platform = Platform.Switch, TitleId = 0x01007EF00011E000,
-            ProjectDir = "~/Projects/recomp/botw-recomp", Branch = "botw", CloneFrom = ("~/Projects/recomp/violet-recomp", "violet"),
-            KnownBuilds = new Dictionary<string, string> { ["2094F152836683A3"] = "1.0.0" },
-            Status = "In progress",
-            Summary = "Breath of the Wild 1.0.0 on the same runtime. Boots into the game's start-up; not playable yet.",
-        },
     ];
 
     public static SourcePort? For(Platform platform, ulong titleId) =>

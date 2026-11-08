@@ -193,12 +193,12 @@ public sealed class SwitchContent
         return file.Release();
     }
 
-    private static long TotalSize(IFileSystem fs) =>
+    internal static long TotalSize(IFileSystem fs) =>
         fs.EnumerateEntries("/", "*", SearchOptions.RecurseSubdirectories)
             .Where(e => e.Type == DirectoryEntryType.File)
             .Sum(e => e.Size);
 
-    private static void CopyTree(IFileSystem fs, string target, long total, ref long done,
+    internal static void CopyTree(IFileSystem fs, string target, long total, ref long done,
         IProgress<(long, long)>? progress, CancellationToken cancel)
     {
         Directory.CreateDirectory(target);
