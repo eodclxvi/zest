@@ -31,7 +31,11 @@ public partial class NativePortViewModel : ViewModelBase
     public string DumpVersion { get; }
 
     public string Heading => $"{Port.Name} · {Port.Status}";
-    public string Facts => $"by {Port.Author} · licence: {Port.Licence} · your dump: base game v{DumpVersion} (accepted: {string.Join(", ", Port.Versions)})";
+    public string Facts => Port.Builder is not null
+        ? $"by {Port.Author} · licence: {Port.Licence} · your file: update v{DumpVersion} (needs v{string.Join(", v", Port.Versions)})"
+        : $"by {Port.Author} · licence: {Port.Licence} · your dump: base game v{DumpVersion} (accepted: {string.Join(", ", Port.Versions)})";
+    public string Explanation => $"Runs natively instead of in {Zest.Models.PlatformInfo.Emulator(Port.Platform)}. "
+        + "The game code is recompiled on this PC from your own dump; no game files are downloaded.";
     public string GameFilesPath => NativePorts.GameFilesFolder(Port);
 
     [ObservableProperty]
@@ -59,10 +63,10 @@ public partial class NativePortViewModel : ViewModelBase
     public bool IsIdle => !IsBusy;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanPlay), nameof(SetupText))]
+    [NotifyPropertyChangedFor(nameof(CanPlay), nameof(SetupText), nameof(GameFilesText))]
     public partial bool GameBuilt { get; set; }
 
-    private bool BuildsGame => Port.Setup is not null || Port.Extract is not null;
+    private bool BuildsGame => Port.Setup is not null || Port.Extract is not null || Port.Builder is not null;
     public bool CanPlay => Release is not null && (!BuildsGame || GameBuilt);
     public bool HasGameFiles => Files is not null;
     public string SetupText => BuildsGame
@@ -79,7 +83,9 @@ public partial class NativePortViewModel : ViewModelBase
         .FirstOrDefault();
     public string ReleaseText => Release is null ? "Not installed" : $"Installed {Release.Tag}";
 
-    public string GameFilesText => Files is null
+    public string GameFilesText => Port.Builder is not null
+        ? GameBuilt ? $"Game folder: {NativePorts.GameFolder(Port)} (saves in ~/.local/share/hookshot)" : $"Builds into {NativePorts.GameFolder(Port)} (about 40 minutes)"
+        : Files is null
         ? "Game files: not prepared"
         : $"Game files ready: v{Files.Version}, {Files.Bytes / (double)(1L << 30):0.0} GB at {GameFilesPath}";
 
@@ -96,8 +102,8 @@ public partial class NativePortViewModel : ViewModelBase
     {
         if (IsBusy)
             return;
-        var content = _content();
-        if (content is null)
+        var content = Port.Builder is null ? _content() : null;
+        if (content is null && Port.Builder is null)
         {
             Message = "Zest needs your prod.keys (Settings) to read Switch games.";
             return;
@@ -117,7 +123,17 @@ public partial class NativePortViewModel : ViewModelBase
                 Release = await NativePorts.InstallAsync(Port, download, _work.Token);
             }
 
-            if (Port.Setup is { } cli)
+            if (Port.Builder is not null)
+            {
+                // The release builds the game from the .nup itself (or rebuilds the folder after an update)
+                if (changed || !GameBuilt)
+                {
+                    changed = true;
+                    var steps = new Progress<(double percent, string text)>(p => { Progress = p.percent; Message = p.text; });
+                    await NativePorts.RunBuilderAsync(Port, _game.Game.Path, steps, _work.Token);
+                }
+            }
+            else if (Port.Setup is { } cli)
             {
                 // The release builds the game itself from the dump and its update: Zest runs that setup (it skips what
                 // it finished before, so this also resumes and updates)
@@ -166,11 +182,13 @@ public partial class NativePortViewModel : ViewModelBase
                 Message = "Extracting the base game's exefs and romfs (several GB)…";
                 var extract = new Progress<(long done, long total)>(p => Progress = p.total > 0 ? 100.0 * p.done / p.total : 0);
                 var token = _work.Token;
-                Files = await Task.Run(() => NativePorts.Prepare(Port, content, _game.Game.Path, extract, token), token);
+                Files = await Task.Run(() => NativePorts.Prepare(Port, content!, _game.Game.Path, extract, token), token);
             }
 
             UpdateTag = null;
-            Message = changed && BuildsGame
+            Message = changed && Port.Builder is not null
+                ? $"Built. Press Play native to start {Port.Name}; its menu is on Insert. The first start prepares its shaders."
+                : changed && BuildsGame
                 ? $"Installed. Press Play native to start {Port.Name}; its settings are in its in-game menu."
                 : changed
                 ? $"Ready. On the first Play, choose the game files folder in {Port.Name}'s setup screen (Play native copies its path for you)."

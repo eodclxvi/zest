@@ -339,6 +339,19 @@ public partial class MainViewModel : ViewModelBase
         if (generation != _scanGeneration)
             return;
 
+        // Switch 2 files (.nup) aren't read by Zest: the title ID and version come from the file name's
+        // [0400486024DEC000][v131072]; the port's own builder checks the file before building
+        foreach (var game in _all.Where(g => g.Game.Platform == Platform.Switch2 && g.Game.Local is null))
+        {
+            if (ShaderCaches.TitleId(game.Game) is not { } id
+                || Services.Native.NativePortCatalog.For(Platform.Switch2, Convert.ToUInt64(id, 16)) is not { } port
+                || _all.Any(g => g.NativePort?.Port.Id == port.Id))
+                continue;
+            var version = NupVersion().Match(game.Game.FileName) is { Success: true } v ? v.Groups[1].Value : "?";
+            game.NativePort = new NativePortViewModel(port, game, new Services.Native.SwitchApplication(port.TitleId, version, "", 0), () => null);
+            _ = game.NativePort.CheckForUpdateAsync();
+        }
+
         // Two dumps of one game would share the port's folders; keep the first.
         foreach (var (game, port, app) in matches.Where(m => m.port is not null).DistinctBy(m => m.port!.Id))
         {
@@ -556,4 +569,7 @@ public partial class MainViewModel : ViewModelBase
         });
         return titleChanged;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\[v(\d+)\]")]
+    private static partial System.Text.RegularExpressions.Regex NupVersion();
 }

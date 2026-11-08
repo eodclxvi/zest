@@ -673,7 +673,7 @@
                                         <TextBlock Classes="title" FontSize="18" Text="{Binding Heading}" VerticalAlignment="Center" />
                                     </DockPanel>
                                     <TextBlock Text="{Binding Port.Summary}" TextWrapping="Wrap" />
-                                    <TextBlock Classes="muted" FontSize="12" Text="Runs natively instead of in Eden. The game code is recompiled on this PC from your own dump; no game files are downloaded."
+                                    <TextBlock Classes="muted" FontSize="12" Text="{Binding Explanation}"
                                                TextWrapping="Wrap" />
                                     <TextBlock Classes="muted" FontSize="12" Text="{Binding Facts}" TextWrapping="Wrap" />
                                     <TextBlock Classes="muted" FontSize="12" Text="{Binding GameFilesText}" TextWrapping="Wrap" FontFamily="monospace" />
