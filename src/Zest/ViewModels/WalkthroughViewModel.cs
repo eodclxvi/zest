@@ -62,8 +62,68 @@ public partial class WalkthroughViewModel : ViewModelBase
         foreach (var item in _notes.Checklist)
             Checklist.Add(new CheckItemViewModel(this, item));
         Links = WalkthroughLinks.For(title, platform);
+        if (AdventureLogViewModel.Supports(title, platform))
+            AdventureLog = new AdventureLogViewModel(CanOpenQuestGuide, OpenQuestGuide);
         UpdateSummary();
         _ready = true;
+    }
+
+    /// <summary>Progress read from the game's saves (Ocarina of Time on Switch 2); it replaces the checklist.</summary>
+    public AdventureLogViewModel? AdventureLog { get; }
+
+    public bool HasAdventureLog => AdventureLog is not null;
+
+    /// <summary>The manual checklist, for games without an Adventure Log (kept for ones that already have items).</summary>
+    public bool ShowChecklist => AdventureLog is null;
+
+    public string NotesButton => ShowChecklist ? "My notes & checklist" : "My notes";
+
+    /// <summary>The window should show the guide tab (a quest's "Guide" button).</summary>
+    public event Action? GuideRequested;
+
+    /// <summary>StrategyWiki chapters for the Adventure Log's quests (OoT's guide is the N64 one; the places match).</summary>
+    private static readonly Dictionary<string, string[]> QuestChapters = new()
+    {
+        ["Meet_DekuTree"] = ["Inside the Deku Tree", "The Beginning"],
+        ["Get_StoneOfForest"] = ["Inside the Deku Tree"],
+        ["Goto_HyruleCastle"] = ["Hyrule Castle"],
+        ["Get_StoneOfFire"] = ["Dodongo's Cavern", "Goron City"],
+        ["Get_StoneOfWater"] = ["Jabu-Jabu's Belly"],
+        ["DoorOfTime"] = ["Temple of Time"],
+        ["SageOfForest"] = ["Forest Temple"],
+        ["SageOfFire"] = ["Fire Temple"],
+        ["SageOfWater"] = ["Water Temple"],
+        ["SageOfShadow"] = ["Shadow Temple", "Bottom of the Well"],
+        ["SageOfSpirit"] = ["Spirit Temple"],
+        ["AllSage"] = ["Ganon's Castle"],
+        ["Defeat_Ganon"] = ["Ganon's Castle"],
+        ["Meet_GreatFairy"] = ["Fairy Fountains"],
+        ["SubEvent_MaskSalesman"] = ["The Happy Mask Shop"],
+        ["GatheringTokenGold"] = ["Gold Skulltulas"],
+        ["SubEvent_GetSwordBigGoron"] = ["Item Trading"],
+        ["SubEvent_GetGlassTruth"] = ["Bottom of the Well"],
+        ["SubEvent_GetScarecrow"] = ["Ocarina Songs"],
+        ["SubEvent_GetStormSong"] = ["Ocarina Songs"],
+        ["SubEvent_GetMelodySun"] = ["Ocarina Songs"],
+        ["SubEvent_GetFireArrow"] = ["Upgrades"],
+        ["SubEvent_GetIceArrow"] = ["Gerudo Training Grounds"],
+    };
+
+    private ChapterViewModel? QuestChapter(string questId) =>
+        QuestChapters.GetValueOrDefault(questId) is { } names
+            ? names.Select(n => Chapters.FirstOrDefault(c => c.Chapter.Page.EndsWith("/" + n, StringComparison.Ordinal)))
+                .FirstOrDefault(c => c is not null)
+            : null;
+
+    private bool CanOpenQuestGuide(string questId) => QuestChapter(questId) is not null;
+
+    private void OpenQuestGuide(string questId)
+    {
+        if (QuestChapter(questId) is { } chapter)
+        {
+            GuideRequested?.Invoke();
+            _ = OpenPageAsync(chapter.Chapter.Page, null);
+        }
     }
 
     public string GameTitle => _title;
@@ -144,6 +204,8 @@ public partial class WalkthroughViewModel : ViewModelBase
     /// <summary>Finds the guide (once): the one chosen before, else the search's best match.</summary>
     public async Task FindAsync()
     {
+        if (AdventureLog is { } log)
+            _ = log.StartAsync();
         if (_found || IsBusy)
             return;
         IsBusy = true;
@@ -164,6 +226,9 @@ public partial class WalkthroughViewModel : ViewModelBase
                 await UseGuideAsync(guide, chosen: _notes.GuideChosen);
             }
             _found = true;
+            // The quests' "Guide" buttons need the chapters
+            if (AdventureLog is { HasProgress: true } started)
+                _ = started.RefreshAsync();
         }
         catch (Exception e) when (e is HttpRequestException or IOException or TaskCanceledException or System.Text.Json.JsonException)
         {

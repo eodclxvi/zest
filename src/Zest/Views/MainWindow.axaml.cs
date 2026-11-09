@@ -501,13 +501,19 @@ public partial class MainWindow : Window
     private void OnOpenWalkthrough(object? sender, RoutedEventArgs e)
     {
         if (Vm.DetailsGame is { } game)
-            WalkthroughWindow.Show(game.Walkthrough, notes: false);
+            WalkthroughWindow.Show(game.Walkthrough, WalkthroughTab.Guide);
+    }
+
+    private void OnOpenAdventureLog(object? sender, RoutedEventArgs e)
+    {
+        if (Vm.DetailsGame is { } game)
+            WalkthroughWindow.Show(game.Walkthrough, WalkthroughTab.AdventureLog);
     }
 
     private void OnOpenWalkthroughNotes(object? sender, RoutedEventArgs e)
     {
         if (Vm.DetailsGame is { } game)
-            WalkthroughWindow.Show(game.Walkthrough, notes: true);
+            WalkthroughWindow.Show(game.Walkthrough, WalkthroughTab.Notes);
     }
 
     private static void ShowFile(GameViewModel? game)
