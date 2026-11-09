@@ -1,0 +1,138 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Zest.ViewModels"
+        x:Class="Zest.Views.WalkthroughWindow"
+        x:DataType="vm:WalkthroughViewModel"
+        Icon="/Assets/zest.png"
+        Width="1100" Height="900" MinWidth="560" MinHeight="420"
+        Background="{DynamicResource BackgroundBrush}"
+        Title="{Binding GameTitle, StringFormat='{}{0} · Walkthrough'}">
+
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Alt+Right" Command="{Binding NextCommand}" />
+        <KeyBinding Gesture="Alt+Left" Command="{Binding PreviousCommand}" />
+    </Window.KeyBindings>
+
+    <Window.Styles>
+        <Style Selector="Border.section">
+            <Setter Property="Background" Value="{DynamicResource ContainerBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineVariantBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Padding" Value="14,12" />
+        </Style>
+        <Style Selector="ListBox#ChapterList ListBoxItem">
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="16" />
+        </Style>
+    </Window.Styles>
+
+    <DockPanel Margin="14">
+        <!-- Credit: StrategyWiki's licence asks for it on every page shown -->
+        <TextBlock DockPanel.Dock="Bottom" Classes="muted" FontSize="11" Margin="4,8,4,0" TextWrapping="Wrap" Text="{Binding Credit}" />
+
+        <TabControl x:Name="Tabs">
+            <TabItem Header="Guide">
+                <Grid ColumnDefinitions="280,12,*" Margin="0,8,0,0">
+                    <!-- Chapters, grouped as in the guide's Table of Contents; tick the ones you've done -->
+                    <Border Classes="section" Padding="6,10">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="8,0,8,8">
+                                <TextBlock Classes="title" FontSize="16" Text="{Binding GuideName}" TextWrapping="Wrap" />
+                                <TextBlock Classes="muted" FontSize="12" Text="{Binding Summary}" TextWrapping="Wrap" />
+                                <TextBlock FontSize="12" Text="{Binding Message}" TextWrapping="Wrap" IsVisible="{Binding !HasGuide}" />
+                            </StackPanel>
+                            <ListBox x:Name="ChapterList" ItemsSource="{Binding Chapters}" SelectedItem="{Binding SelectedChapter}" Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ChapterViewModel">
+                                        <StackPanel>
+                                            <TextBlock Classes="muted" FontSize="11" FontWeight="Bold" Margin="2,8,0,2" Text="{Binding Group}" IsVisible="{Binding ShowGroup}" />
+                                            <CheckBox IsChecked="{Binding Done}" ToolTip.Tip="Done">
+                                                <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
+                                            </CheckBox>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- The page -->
+                    <Border Grid.Column="2" Classes="section" Padding="0">
+                        <DockPanel>
+                            <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="18,12,12,8">
+                                <TextBlock Classes="title" FontSize="20" VerticalAlignment="Center" Text="{Binding PageTitle}" TextWrapping="Wrap" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                    <Button Classes="outlined" Command="{Binding PreviousCommand}" ToolTip.Tip="Previous chapter (Alt+Left)">
+                                        <TextBlock Text="‹ Previous" />
+                                    </Button>
+                                    <Button Classes="primary" Command="{Binding MarkDoneAndNextCommand}" ToolTip.Tip="Tick this chapter and go to the next">
+                                        <TextBlock Text="Done ›" />
+                                    </Button>
+                                    <Button Classes="outlined" Command="{Binding NextCommand}" ToolTip.Tip="Next chapter (Alt+Right)">
+                                        <TextBlock Text="Next ›" />
+                                    </Button>
+                                    <Button Classes="outlined" Command="{Binding AddPageToChecklistCommand}" ToolTip.Tip="Add this page to your checklist">
+                                        <TextBlock Text="+ Checklist" />
+                                    </Button>
+                                    <Button Classes="outlined" Command="{Binding OpenOnWikiCommand}" ToolTip.Tip="Open this page on StrategyWiki">
+                                        <TextBlock Text="Web" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                            <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" Height="4" Margin="18,0" IsVisible="{Binding IsLoadingPage}" />
+                            <TextBlock DockPanel.Dock="Top" Margin="18,6" TextWrapping="Wrap" Text="{Binding PageError}"
+                                       IsVisible="{Binding PageError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                            <ScrollViewer x:Name="PageScroll" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel x:Name="PageContent" Margin="22,4,22,24" Spacing="10" MaxWidth="900" HorizontalAlignment="Left" />
+                            </ScrollViewer>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="My notes">
+                <Grid ColumnDefinitions="380,12,*" Margin="0,8,0,0">
+                    <Border Classes="section">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Classes="title" FontSize="16" Text="Checklist" Margin="0,0,0,8" />
+                            <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,8,0,0">
+                                <TextBox x:Name="NewItemBox" Text="{Binding NewItem}" Watermark="Add an item (Enter)…" />
+                                <Button Grid.Column="1" Classes="primary" Command="{Binding AddItemCommand}">
+                                    <TextBlock Text="Add" />
+                                </Button>
+                            </Grid>
+                            <ScrollViewer>
+                                <ItemsControl ItemsSource="{Binding Checklist}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CheckItemViewModel">
+                                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,2">
+                                                <CheckBox IsChecked="{Binding Done}">
+                                                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                                                </CheckBox>
+                                                <Button Grid.Column="1" Classes="outlined" Padding="8,2" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove">
+                                                    <TextBlock Text="✕" />
+                                                </Button>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </Border>
+                    <Border Grid.Column="2" Classes="section">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Classes="title" FontSize="16" Text="Notes" Margin="0,0,0,8" />
+                            <TextBlock DockPanel.Dock="Bottom" Classes="muted" FontSize="11" Margin="0,6,0,0" Text="Saved as you type, per game." />
+                            <TextBox Text="{Binding Notes}" AcceptsReturn="True" TextWrapping="Wrap" FontSize="15"
+                                     Watermark="Where you left off, codes, things to come back for…" VerticalContentAlignment="Top" />
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

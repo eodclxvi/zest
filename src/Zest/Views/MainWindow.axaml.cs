@@ -497,6 +497,18 @@ public partial class MainWindow : Window
             Process.Start(new ProcessStartInfo("xdg-open", [native.Port.ProjectUrl]) { UseShellExecute = false });
     }
 
+    private void OnOpenWalkthrough(object? sender, RoutedEventArgs e)
+    {
+        if (Vm.DetailsGame is { } game)
+            WalkthroughWindow.Show(game.Walkthrough, notes: false);
+    }
+
+    private void OnOpenWalkthroughNotes(object? sender, RoutedEventArgs e)
+    {
+        if (Vm.DetailsGame is { } game)
+            WalkthroughWindow.Show(game.Walkthrough, notes: true);
+    }
+
     private static void ShowFile(GameViewModel? game)
     {
         var folder = game is null ? null : Path.GetDirectoryName(game.Game.Path);
