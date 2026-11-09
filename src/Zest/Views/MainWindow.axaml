@@ -505,6 +505,12 @@
                                         <TextBlock Text="Play" FontSize="15" />
                                     </StackPanel>
                                 </Button>
+                                <Button Classes="outlined" Margin="0,0,10,10" Padding="18,11"
+                                        IsVisible="{Binding DetailsGame.NativePort.ReadyToPlay, FallbackValue=False}"
+                                        Command="{Binding LaunchEmulatorCommand}" CommandParameter="{Binding DetailsGame}"
+                                        ToolTip.Tip="Play starts the native port; this runs the emulator instead">
+                                    <TextBlock Text="{Binding DetailsGame.EmulatorName, StringFormat='Play in {0}'}" />
+                                </Button>
                                 <Button Classes="outlined" Margin="0,0,10,10"
                                         IsVisible="{Binding DetailsGame.HasPokemonSave}"
                                         Command="{Binding OpenForgeCommand}" CommandParameter="{Binding DetailsGame}">
@@ -643,7 +649,7 @@
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                                         <Button Classes="primary"
-                                                                Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).LaunchCommand}" CommandParameter="{Binding}">
+                                                                Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).LaunchEmulatorCommand}" CommandParameter="{Binding}">
                                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                                 <PathIcon Data="{StaticResource IconPlay}" Width="16" Height="16" />
                                                                 <TextBlock Text="{Binding EmulatorName, StringFormat='Play in {0}'}" />
@@ -826,7 +832,7 @@
                                         <Button Classes="primary" Margin="0,4,10,6" IsVisible="{Binding CanPlay}" IsEnabled="{Binding IsIdle}"
                                                 Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).LaunchNativeCommand}"
                                                 CommandParameter="{Binding $parent[Window].((vm:MainViewModel)DataContext).DetailsGame}"
-                                                Click="OnPlayNative">
+                                                >
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <PathIcon Data="{StaticResource IconPlay}" Width="16" Height="16" />
                                                 <TextBlock Text="Play native" />
