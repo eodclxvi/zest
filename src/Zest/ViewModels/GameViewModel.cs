@@ -113,6 +113,24 @@ public partial class GameViewModel : ViewModelBase
     /// <summary>The details page's shader cache search, made when the page first shows it.</summary>
     public ShaderCacheViewModel ShaderCache => _shaderCache ??= new ShaderCacheViewModel(this);
 
+    private WalkthroughViewModel? _walkthrough;
+
+    /// <summary>The details page's walkthrough card and reader (guide, chapters done, checklist, notes), made when first shown.</summary>
+    public WalkthroughViewModel Walkthrough
+    {
+        get
+        {
+            if (_walkthrough is null)
+            {
+                _walkthrough = new WalkthroughViewModel(Title);
+                _ = _walkthrough.FindAsync();
+            }
+            return _walkthrough;
+        }
+    }
+
+    public bool CanShowWalkthrough => !IsAddOn;
+
     /// <summary>Updates and DLC listed on their own have no shaders to cache.</summary>
     public bool CanSearchShaders => !IsAddOn;
 

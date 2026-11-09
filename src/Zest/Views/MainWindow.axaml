@@ -671,6 +671,54 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Walkthrough: the game's StrategyWiki guide in Zest's reader, other guides as links, notes -->
+                            <Border Background="{DynamicResource ContainerBrush}" CornerRadius="18" Padding="18,14"
+                                    BorderBrush="{DynamicResource OutlineVariantBrush}" BorderThickness="1"
+                                    IsVisible="{Binding DetailsGame.CanShowWalkthrough}">
+                                <StackPanel Spacing="8" DataContext="{Binding DetailsGame.Walkthrough}">
+                                    <TextBlock Classes="title" FontSize="18" Text="Walkthrough &amp; notes" />
+                                    <ProgressBar IsVisible="{Binding IsBusy}" IsIndeterminate="True" Height="6" />
+                                    <TextBlock Text="{Binding GuideName}" FontWeight="Bold" TextWrapping="Wrap" IsVisible="{Binding HasGuide}" />
+                                    <TextBlock Classes="muted" FontSize="12" Text="{Binding Message}" TextWrapping="Wrap" />
+                                    <TextBlock Classes="muted" FontSize="12" Text="{Binding Summary}" TextWrapping="Wrap"
+                                               IsVisible="{Binding Summary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                    <WrapPanel>
+                                        <Button Classes="primary" Margin="0,4,10,6" IsVisible="{Binding HasGuide}" Click="OnOpenWalkthrough">
+                                            <TextBlock Text="Open guide" />
+                                        </Button>
+                                        <Button Classes="outlined" Margin="0,4,10,6" Click="OnOpenWalkthroughNotes">
+                                            <TextBlock Text="My notes &amp; checklist" />
+                                        </Button>
+                                        <Button Classes="outlined" Margin="0,4,10,6" Command="{Binding ToggleCandidatesCommand}"
+                                                IsVisible="{Binding CanChangeGuide}" ToolTip.Tip="Pick another StrategyWiki guide (another version or remake)">
+                                            <TextBlock Text="Change guide" />
+                                        </Button>
+                                    </WrapPanel>
+                                    <ItemsControl ItemsSource="{Binding Candidates}" IsVisible="{Binding HasCandidates}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <Button Classes="outlined" Margin="0,0,0,6" Content="{Binding}"
+                                                        Command="{Binding $parent[ItemsControl].((vm:WalkthroughViewModel)DataContext).ChooseGuideCommand}" CommandParameter="{Binding}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Classes="muted" FontSize="12" Text="Other guides (open in the browser):" />
+                                    <ItemsControl ItemsSource="{Binding Links}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:WalkthroughLink">
+                                                <Button Classes="chip" Margin="0,0,8,6" Content="{Binding Label}"
+                                                        Command="{Binding $parent[ItemsControl].((vm:WalkthroughViewModel)DataContext).OpenLinkCommand}" CommandParameter="{Binding}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Shader caches: search for shared caches; Lichii packs install here -->
                             <Border Background="{DynamicResource ContainerBrush}" CornerRadius="18" Padding="18,14"
                                     BorderBrush="{DynamicResource OutlineVariantBrush}" BorderThickness="1"

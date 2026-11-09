@@ -111,5 +111,7 @@ The .NET 10 SDK comes from mise (`mise.toml`); the published app runs on the sys
   [PKHeX-Plugins](https://github.com/santacrab2/PKHeX-Plugins). Not affiliated with Nintendo, Game Freak, or The Pokémon Company.
 - Zstandard decompression: [ZstdSharp](https://github.com/oleg-st/ZstdSharp) (MIT). The NCZ format is nsz's
   (nicoboss/nsz); Zest's decoder is its own implementation.
+- Walkthroughs: guide text from [StrategyWiki](https://strategywiki.org) contributors (CC BY-SA 4.0), fetched
+  when read and credited in the reader; nothing is bundled. HTML parsing: [AngleSharp](https://github.com/AngleSharp/AngleSharp) (MIT).
 - Native ports are separate projects, installed from their official releases and credited on each card:
   LAS Recomp by peiikai (MIT) and Sky Recomp by Apolinario-coder. Zest bundles none of their code.
