@@ -398,8 +398,73 @@ public static class NativePorts
         progress.Report((100, "Ready"));
     }
 
+    /// <summary>The port can prepare its shaders ahead of the first start, and hasn't yet for this build.</summary>
+    public static bool NeedsShaderPrepare(NativePort port) =>
+        port.Builder is { PrepareExecutable: { } exe, PreparedMarker: { } marker }
+        && IsGameBuilt(port)
+        && File.Exists(Path.Combine(GameFolder(port), exe))
+        && !File.Exists(Path.Combine(GameFolder(port), marker));
+
+    /// <summary>
+    /// Prepares every shader of the built game with no window (Hookshot's <c>--prepare-shaders</c>), the work its
+    /// first start would otherwise do before the window opens (several minutes). Progress from its "@@progress" lines;
+    /// output appended to prepare.log. Returns false (with the reason in <paramref name="note"/>) when the port can't
+    /// do it here, e.g. no usable Vulkan: the game then prepares them at its first start as before, so that isn't an
+    /// install failure.
+    /// </summary>
+    public static async Task<(bool ok, string? note)> PrepareShadersAsync(NativePort port, IProgress<(double percent, string text)> progress, CancellationToken cancel)
+    {
+        var b = port.Builder ?? throw new InvalidOperationException($"{port.Name} has no builder.");
+        if (b.PrepareExecutable is not { } exe)
+            return (false, null);
+        var game = GameFolder(port);
+        var logPath = Path.Combine(Root(port), "prepare.log");
+        await using var log = new StreamWriter(logPath, append: true) { AutoFlush = true };
+        log.WriteLine($"---- {DateTime.Now:yyyy-MM-dd HH:mm:ss} {exe} {string.Join(' ', b.PrepareArgs)}");
+
+        var stage = "Preparing shaders";
+        string? error = null;
+        var done = false;
+        progress.Report((0, stage + " so the first start doesn't have to…"));
+        var psi = new ProcessStartInfo(Path.Combine(game, exe))
+        {
+            UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+            WorkingDirectory = game,   // as the game folder's own launcher starts it (cd "$HERE"; ./bin/hookshot)
+        };
+        foreach (var a in b.PrepareArgs)
+            psi.ArgumentList.Add(a);
+        var exit = await RunLoggedAsync(psi, log, l =>
+        {
+            var space = l.IndexOf(' ');
+            var (word, rest) = space < 0 ? (l, "") : (l[..space], l[(space + 1)..]);
+            switch (word)
+            {
+                case "@@stage":
+                    var parts = rest.Split(' ', 2);
+                    stage = parts.Length > 1 ? parts[1] : parts[0];
+                    break;
+                case "@@progress" when double.TryParse(rest, System.Globalization.CultureInfo.InvariantCulture, out var f):
+                    progress.Report((Math.Min(99.5, 100 * Math.Clamp(f, 0, 1)), $"{stage} · {Math.Clamp(f, 0, 1):P0}"));
+                    break;
+                case "@@done":
+                    done = true;
+                    break;
+                case "@@error":
+                    error = rest;
+                    break;
+            }
+        }, cancel);
+        cancel.ThrowIfCancellationRequested();
+        if (exit == 0 && done)
+        {
+            progress.Report((100, "Shaders prepared"));
+            return (true, null);
+        }
+        return (false, error ?? $"shader preparation stopped (exit {exit}); the game prepares them at its first start. Log: {logPath}");
+    }
+
     /// <summary>Runs the release AppImage with these arguments, each output line to the log and <paramref name="line"/>; returns the exit code.</summary>
-    private static async Task<int> RunBuilderStepAsync(InstalledRelease release, string[] args, StreamWriter log, Action<string> line, CancellationToken cancel)
+    private static Task<int> RunBuilderStepAsync(InstalledRelease release, string[] args, StreamWriter log, Action<string> line, CancellationToken cancel)
     {
         var psi = new ProcessStartInfo(release.AppImage)
         {
@@ -410,7 +475,14 @@ public static class NativePorts
             psi.ArgumentList.Add(a);
         if (!File.Exists("/usr/bin/fusermount3") && !File.Exists("/usr/bin/fusermount"))
             psi.Environment["APPIMAGE_EXTRACT_AND_RUN"] = "1";
-        using var p = Process.Start(psi) ?? throw new IOException("Could not start the builder.");
+        return RunLoggedAsync(psi, log, line, cancel);
+    }
+
+    /// <summary>Runs a process with redirected output, each line to the log and <paramref name="line"/>; cancelling
+    /// stops its process tree. Returns the exit code.</summary>
+    private static async Task<int> RunLoggedAsync(ProcessStartInfo psi, StreamWriter log, Action<string> line, CancellationToken cancel)
+    {
+        using var p = Process.Start(psi) ?? throw new IOException($"Could not start {Path.GetFileName(psi.FileName)}.");
         using var reg = cancel.Register(() => { try { p.Kill(entireProcessTree: true); } catch (InvalidOperationException) { } });
         var gate = new object();
         async Task Pump(StreamReader r)

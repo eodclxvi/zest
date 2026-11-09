@@ -114,6 +114,7 @@ public partial class NativePortViewModel : ViewModelBase
         try
         {
             var changed = false;
+            string? prepareNote = null;
             var latest = await NativePorts.LatestTagAsync(Port, _work.Token);
             if (Release is null || (latest is not null && latest != Release.Tag))
             {
@@ -131,6 +132,16 @@ public partial class NativePortViewModel : ViewModelBase
                     changed = true;
                     var steps = new Progress<(double percent, string text)>(p => { Progress = p.percent; Message = p.text; });
                     await NativePorts.RunBuilderAsync(Port, _game.Game.Path, steps, _work.Token);
+                }
+                // Then every shader, ahead of time (also for a folder built before this step existed): otherwise
+                // the first start spends minutes on it before its window opens. Not being able to here isn't fatal.
+                if (NativePorts.NeedsShaderPrepare(Port))
+                {
+                    changed = true;
+                    var steps = new Progress<(double percent, string text)>(p => { Progress = p.percent; Message = p.text; });
+                    var (ok, note) = await NativePorts.PrepareShadersAsync(Port, steps, _work.Token);
+                    if (!ok && note is not null)
+                        prepareNote = note;
                 }
             }
             else if (Port.Setup is { } cli)
@@ -187,7 +198,9 @@ public partial class NativePortViewModel : ViewModelBase
 
             UpdateTag = null;
             Message = changed && Port.Builder is not null
-                ? $"Built. Press Play native to start {Port.Name}; its menu is on Insert. The first start prepares its shaders."
+                ? prepareNote is null
+                    ? $"Built, shaders prepared. Press Play native to start {Port.Name}; its menu is on Insert."
+                    : $"Built. Press Play native to start {Port.Name}; its menu is on Insert. Shaders weren't prepared ahead ({prepareNote}), so the first start does it."
                 : changed && BuildsGame
                 ? $"Installed. Press Play native to start {Port.Name}; its settings are in its in-game menu."
                 : changed
