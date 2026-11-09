@@ -7,15 +7,13 @@ using Zest.Services.GameData;
 
 namespace Zest.ViewModels;
 
-public sealed class SlotChoice(SlotCaption caption, string source)
+public sealed class SlotChoice(ProgressSlot slot)
 {
-    public SlotCaption Caption { get; } = caption;
-    public string Label { get; } =
-        $"{(caption.AutoSave ? "Autosave" : "Save")} {caption.Index + 1} · {caption.Location} · {caption.Saved:ddd d MMM, HH:mm}";
-    public string Source { get; } = source;
+    public ProgressSlot Slot { get; } = slot;
+    public string Label => Slot.Label.Contains(Slot.Source) ? Slot.Label : $"{Slot.Label} · {Slot.Source}";
 }
 
-public sealed class QuestViewModel(QuestProgress quest, Func<string, bool> canOpenGuide)
+public sealed class QuestViewModel(QuestProgress quest, Func<QuestProgress, bool> canOpenGuide)
 {
     public QuestProgress Quest { get; } = quest;
     public string Name => Quest.Name;
@@ -27,17 +25,23 @@ public sealed class QuestViewModel(QuestProgress quest, Func<string, bool> canOp
     public string StepText => Quest.State switch
     {
         QuestState.Complete => "Complete",
-        _ when Quest.StepCount > 0 => $"Step {Math.Max(Quest.StepIndex, 1)} of {Quest.StepCount}" + (Quest.BossBattle ? " · boss fight" : ""),
+        _ when Quest.StepCount > 1 => $"{Quest.StepIndex} of {Quest.StepCount} done" + (Quest.BossBattle ? " · boss fight" : ""),
         _ => "",
     };
     public double Fraction => Quest.StepCount == 0 ? 0 : Quest.State == QuestState.Complete ? 1 : (double)Quest.StepIndex / Quest.StepCount;
-    public bool HasGuide => canOpenGuide(Quest.Id);
+    public bool HasProgressBar => Quest.StepCount > 1;
+    public bool HasGuide => canOpenGuide(Quest);
 }
 
 public sealed record CollectibleViewModel(string Name, bool Have)
 {
     public double Opacity => Have ? 1 : 0.38;
     public string Mark => Have ? "✓" : "·";
+}
+
+public sealed record GroupViewModel(string Title, IReadOnlyList<CollectibleViewModel> Items)
+{
+    public string Header => $"{Title.ToUpperInvariant()}  ·  {Items.Count(i => i.Have)}/{Items.Count}";
 }
 
 public sealed record DungeonViewModel(DungeonProgress D)
@@ -57,48 +61,54 @@ public sealed record DungeonViewModel(DungeonProgress D)
 }
 
 /// <summary>
-/// Ocarina of Time (Switch 2)'s progress read from its saves: the game's own Adventure Log (what you've done, what to
-/// do next), the save's picture and place, and a tracker for songs, stones, items, dungeons and places. It follows
-/// the newest save in Lichii or Hookshot and refreshes when the game saves.
+/// A game's progress read from its saves (<see cref="IProgressReader"/>): where you are, what to do next, the quests
+/// and a tracker. Ocarina of Time (Switch 2) shows the game's own Adventure Log; the Pokémon games show Zest's
+/// story steps. It follows the newest save and refreshes when the game saves.
 /// </summary>
 public partial class AdventureLogViewModel : ViewModelBase, IDisposable
 {
-    private readonly Func<string, bool> _canOpenGuide;
-    private readonly Action<string> _openGuide;
-    private OotProgress? _data;
+    private readonly IProgressReader _reader;
+    private readonly Func<QuestProgress, bool> _canOpenGuide;
+    private readonly Action<QuestProgress> _openGuide;
     private FileSystemWatcher[] _watchers = [];
     private DispatcherTimer? _debounce;
     private bool _loading;
     private bool _choosing;
     private bool _started;
+    private bool _again;
 
-    public AdventureLogViewModel(Func<string, bool> canOpenGuide, Action<string> openGuide)
+    public AdventureLogViewModel(IProgressReader reader, Func<QuestProgress, bool> canOpenGuide, Action<QuestProgress> openGuide)
     {
+        _reader = reader;
         _canOpenGuide = canOpenGuide;
         _openGuide = openGuide;
     }
 
-    /// <summary>The game this page reads: Ocarina of Time on Switch 2 only.</summary>
-    public static bool Supports(string title, Models.Platform platform) =>
-        platform == Models.Platform.Switch2
-        && Services.LibraryScanner.TitleKey(Services.Walkthroughs.StrategyWiki.CleanTitle(title))
-           == Services.LibraryScanner.TitleKey("The Legend of Zelda: Ocarina of Time");
+    /// <summary>The reader for a game whose saves Zest can read progress from, or null.</summary>
+    public static IProgressReader? ReaderFor(string title, Models.Platform platform)
+    {
+        if (platform == Models.Platform.Switch2
+            && Services.LibraryScanner.TitleKey(Services.Walkthroughs.StrategyWiki.CleanTitle(title))
+               == Services.LibraryScanner.TitleKey("The Legend of Zelda: Ocarina of Time"))
+            return new OotReader();
+        return PokemonReader.For(title, platform);
+    }
 
     public ObservableCollection<SlotChoice> Slots { get; } = [];
     public ObservableCollection<QuestViewModel> Current { get; } = [];
     public ObservableCollection<QuestViewModel> Completed { get; } = [];
-    public ObservableCollection<CollectibleViewModel> Songs { get; } = [];
-    public ObservableCollection<CollectibleViewModel> Stones { get; } = [];
-    public ObservableCollection<CollectibleViewModel> Items { get; } = [];
-    public ObservableCollection<CollectibleViewModel> Equipment { get; } = [];
+    public ObservableCollection<GroupViewModel> Groups { get; } = [];
     public ObservableCollection<DungeonViewModel> Dungeons { get; } = [];
-    public ObservableCollection<CollectibleViewModel> Places { get; } = [];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasProgress))]
-    public partial SlotProgress? Progress { get; set; }
+    public partial ProgressReport? Progress { get; set; }
 
     public bool HasProgress => Progress is not null;
+
+    public bool HasDungeons => Dungeons.Count > 0;
+
+    public bool HasCompleted => Completed.Count > 0;
 
     [ObservableProperty]
     public partial string Message { get; set; } = "Reading your save…";
@@ -106,7 +116,7 @@ public partial class AdventureLogViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     public partial SlotChoice? SelectedSlot { get; set; }
 
-    /// <summary>On: show the newest save each time the game saves. Picking an older slot turns it off.</summary>
+    /// <summary>On: show the newest save each time the game saves. Picking an older one turns it off.</summary>
     [ObservableProperty]
     public partial bool FollowLatest { get; set; } = true;
 
@@ -124,6 +134,9 @@ public partial class AdventureLogViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     public partial string Counts { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string Footer { get; set; } = "";
 
     /// <summary>One line for the details page card: "Next: Explore Death Mountain."</summary>
     [ObservableProperty]
@@ -143,7 +156,7 @@ public partial class AdventureLogViewModel : ViewModelBase, IDisposable
             _ = RefreshAsync();
     }
 
-    /// <summary>Reads the game's text (once) and the saves, then watches the save folders.</summary>
+    /// <summary>Reads the saves, then watches their folders. Once.</summary>
     public async Task StartAsync()
     {
         if (_started)
@@ -157,34 +170,47 @@ public partial class AdventureLogViewModel : ViewModelBase, IDisposable
     public async Task RefreshAsync()
     {
         if (_loading)
+        {
+            _again = true;   // a save came in while reading: read again after
             return;
+        }
         _loading = true;
         try
         {
-            var romfs = OotProgress.FindRomfs();
-            if (romfs is null)
+            do
             {
-                Message = "The Adventure Log reads its text from the game's files. Install the native version (Hookshot) " +
-                          "from the details page first; your saves can stay in Lichii.";
+                _again = false;
+                await LoadAsync();
+            }
+            while (_again);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            if (await Task.Run(_reader.Prepare) is { } problem)
+            {
+                Message = problem;
                 return;
             }
-            _data ??= await Task.Run(() => OotProgress.Load(romfs));
-            var data = _data;
-            var slots = await Task.Run(() => OotProgress.FindSources()
-                .SelectMany(src => src.SlotFolders.Select(f => new SlotChoice(data.ReadCaption(f), src.Name)))
-                .OrderByDescending(s => s.Caption.Saved)
-                .ToList());
+            var slots = await Task.Run(_reader.Slots);
             if (slots.Count == 0)
             {
-                Message = "No Ocarina of Time saves yet in Lichii or Hookshot.";
+                Message = _reader.NoSaves;
                 return;
             }
-            var keep = SelectedSlot?.Caption.Folder;
+            var keep = SelectedSlot?.Slot.Id;
             _choosing = true;
             Slots.Clear();
             foreach (var s in slots)
-                Slots.Add(s);
-            SelectedSlot = FollowLatest ? Slots[0] : Slots.FirstOrDefault(s => s.Caption.Folder == keep) ?? Slots[0];
+                Slots.Add(new SlotChoice(s));
+            SelectedSlot = FollowLatest ? Slots[0] : Slots.FirstOrDefault(s => s.Slot.Id == keep) ?? Slots[0];
             _choosing = false;
             await ShowSlotAsync(SelectedSlot);
         }
@@ -196,23 +222,21 @@ public partial class AdventureLogViewModel : ViewModelBase, IDisposable
         finally
         {
             _choosing = false;
-            _loading = false;
         }
     }
 
     private async Task ShowSlotAsync(SlotChoice slot)
     {
-        if (_data is not { } data)
-            return;
-        SlotProgress p;
+        ProgressReport p;
         try
         {
-            p = await Task.Run(() => data.ReadSlot(slot.Caption.Folder));
+            p = await Task.Run(() => _reader.Read(slot.Slot));
         }
-        catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException)
+        catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException
+                                       or IndexOutOfRangeException or ArgumentException)
         {
             // The game may be writing the save right now: the watcher will come back
-            Message = $"Couldn't read {Path.GetFileName(slot.Caption.Folder)}: {e.Message}";
+            Message = $"Couldn't read that save: {e.Message}";
             return;
         }
         Progress = p;
@@ -220,7 +244,7 @@ public partial class AdventureLogViewModel : ViewModelBase, IDisposable
 
         Picture?.Dispose();
         Picture = null;
-        if (p.Caption.Thumbnail is { } jpeg)
+        if (p.Picture is { } jpeg)
         {
             try
             {
@@ -238,22 +262,17 @@ public partial class AdventureLogViewModel : ViewModelBase, IDisposable
             .OrderByDescending(q => q.Main).ThenBy(q => Umbrella.Contains(q.Id))
             .Select(q => new QuestViewModel(q, _canOpenGuide)));
         Replace(Completed, p.Quests.Where(q => q.State == QuestState.Complete).Select(q => new QuestViewModel(q, _canOpenGuide)));
-        Replace(Songs, p.Songs.Select(c => new CollectibleViewModel(c.Name, c.Have)));
-        Replace(Stones, p.Stones.Select(c => new CollectibleViewModel(c.Name, c.Have)));
-        Replace(Items, p.Items.Select(c => new CollectibleViewModel(c.Name, c.Have)));
-        Replace(Equipment, p.Equipment.Select(c => new CollectibleViewModel(c.Name, c.Have)));
+        Replace(Groups, p.Groups.Where(g => g.Items.Count > 0)
+            .Select(g => new GroupViewModel(g.Title, [.. g.Items.Select(c => new CollectibleViewModel(c.Name, c.Have))])));
         Replace(Dungeons, p.Dungeons.Select(d => new DungeonViewModel(d)));
-        Replace(Places, p.Places.Select(c => new CollectibleViewModel(c.Name, c.Have)));
+        OnPropertyChanged(nameof(HasDungeons));
+        OnPropertyChanged(nameof(HasCompleted));
 
         NextUp = Current.FirstOrDefault(q => q.Quest.Main && q.HasNextAction) ?? Current.FirstOrDefault(q => q.HasNextAction);
-        var c = p.Caption;
-        var hearts = c.MaxLifeQuarters / 4;
-        var pieces = c.MaxLifeQuarters % 4;
-        Stats = $"♥ {hearts}{(pieces > 0 ? $" + {pieces}/4" : "")} hearts   ·   {c.GoldTokens} of 100 Gold Skulltulas   ·   {c.Rupees} rupees";
-        Where = $"{c.Location} · {(c.AutoSave ? "autosave" : "saved")} {c.Saved:ddd d MMM, HH:mm} · {slot.Source}";
-        Counts = $"{p.Quests.Count(q => q.Main && q.State == QuestState.Complete)} of {p.Quests.Count(q => q.Main)} main quests · " +
-                 $"{p.Songs.Count(s => s.Have)}/12 songs · {p.Stones.Count(s => s.Have)}/9 stones and medallions · " +
-                 $"{p.Places.Count(s => s.Have)}/{p.Places.Count} places";
+        Stats = p.Stats;
+        Where = p.Where;
+        Counts = p.Counts;
+        Footer = p.Footer;
         Headline = NextUp is { } n ? $"Next: {n.NextAction}" : "";
     }
 
@@ -268,7 +287,7 @@ public partial class AdventureLogViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private void OpenGuide(QuestViewModel quest) => _openGuide(quest.Quest.Id);
+    private void OpenGuide(QuestViewModel quest) => _openGuide(quest.Quest);
 
     /// <summary>The game saves (autosaves too) → refresh a moment later, once it has finished writing.</summary>
     private void Watch()
@@ -280,9 +299,9 @@ public partial class AdventureLogViewModel : ViewModelBase, IDisposable
             _debounce!.Stop();
             _ = RefreshAsync();
         });
-        _watchers = [.. OotProgress.FindSources().Select(src =>
+        _watchers = [.. _reader.WatchFolders().Where(Directory.Exists).Select(folder =>
         {
-            var w = new FileSystemWatcher(src.Folder, "*.sav") { IncludeSubdirectories = true, NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName };
+            var w = new FileSystemWatcher(folder) { IncludeSubdirectories = true, NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName };
             w.Changed += OnSaveChanged;
             w.Created += OnSaveChanged;
             w.Renamed += OnSaveChanged;
