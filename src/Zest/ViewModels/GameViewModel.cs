@@ -125,7 +125,7 @@ public partial class GameViewModel : ViewModelBase
         {
             if (_walkthrough is null)
             {
-                _walkthrough = new WalkthroughViewModel(Title);
+                _walkthrough = new WalkthroughViewModel(Title, Game.Platform);
                 _ = _walkthrough.FindAsync();
             }
             return _walkthrough;
