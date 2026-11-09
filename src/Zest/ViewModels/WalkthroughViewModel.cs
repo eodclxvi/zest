@@ -54,14 +54,14 @@ public partial class WalkthroughViewModel : ViewModelBase
     private bool _found;
     private readonly bool _ready;
 
-    public WalkthroughViewModel(string title)
+    public WalkthroughViewModel(string title, Models.Platform platform)
     {
         _title = title;
         _notes = GameNotes.Load(title);
         Notes = _notes.Notes;
         foreach (var item in _notes.Checklist)
             Checklist.Add(new CheckItemViewModel(this, item));
-        Links = WalkthroughLinks.For(title);
+        Links = WalkthroughLinks.For(title, platform);
         UpdateSummary();
         _ready = true;
     }
@@ -415,11 +415,27 @@ public partial class WalkthroughViewModel : ViewModelBase
 /// <summary>Other places with guides for a game, by series; they open in the browser.</summary>
 public static class WalkthroughLinks
 {
-    public static IReadOnlyList<WalkthroughLink> For(string title)
+    /// <summary>Guides for a particular release, by platform and title key (LibraryScanner.TitleKey).</summary>
+    private static readonly Dictionary<(Models.Platform, string), WalkthroughLink[]> Remakes = new()
+    {
+        // Ocarina of Time on Switch 2 (2026; Hookshot's 0400486024DEC000): the remake's changes aren't in the N64 guide
+        [(Models.Platform.Switch2, LibraryScanner.TitleKey("The Legend of Zelda: Ocarina of Time"))] =
+        [
+            new("Zelda Central (Switch 2, 100%)", "https://zeldacentral.com/games/ocarina-of-time-remake/"),
+            new("Nintendo Life (Switch 2)", "https://www.nintendolife.com/guides/zelda-ocarina-of-time-walkthrough-switch-2-remake"),
+            new("RespecD (Switch 2 changes)", "https://www.respec.net/guide/276-the-legend-zelda-ocarina-time-remake-walkthrough-100-completion-guide-with-all-switch-2-changes"),
+            new("Final Boss (dungeon index)", "https://finalboss.io/zelda-oot-switch-2-walkthrough-guides"),
+        ],
+    };
+
+    public static IReadOnlyList<WalkthroughLink> For(string title, Models.Platform platform)
     {
         var name = StrategyWiki.CleanTitle(title);
         var q = Uri.EscapeDataString(name);
         var links = new List<WalkthroughLink>();
+        // Guides written for one release of a game, first: StrategyWiki only covers the older versions of these
+        if (Remakes.TryGetValue((platform, LibraryScanner.TitleKey(name)), out var remake))
+            links.AddRange(remake);
         if (name.Contains("Zelda", StringComparison.OrdinalIgnoreCase))
         {
             links.Add(new("Zelda Dungeon", $"https://www.zeldadungeon.net/?s={q}+walkthrough"));
