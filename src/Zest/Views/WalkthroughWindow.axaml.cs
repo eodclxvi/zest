@@ -12,6 +12,8 @@ using Zest.ViewModels;
 
 namespace Zest.Views;
 
+public enum WalkthroughTab { AdventureLog, Guide, Notes }
+
 /// <summary>
 /// The walkthrough reader: a window of its own (it can sit on another monitor while the game runs), one per game.
 /// Draws the page's blocks as controls, opens links in the guide here and others in the browser, and keeps the
@@ -46,8 +48,10 @@ public partial class WalkthroughWindow : Window
 
     private WalkthroughViewModel? Vm => DataContext as WalkthroughViewModel;
 
-    /// <summary>Shows the game's reader (brought to the front if it's open already), on the guide or the notes tab.</summary>
-    public static void Show(WalkthroughViewModel vm, bool notes)
+    private void OnGuideRequested() => Tabs.SelectedItem = GuideTab;
+
+    /// <summary>Shows the game's reader (brought to the front if it's open already) on the given tab.</summary>
+    public static void Show(WalkthroughViewModel vm, WalkthroughTab tab)
     {
         if (!Open.TryGetValue(vm.GameTitle, out var window))
         {
@@ -57,7 +61,12 @@ public partial class WalkthroughWindow : Window
             window.Show();
             _ = vm.OpenReaderAsync();
         }
-        window.Tabs.SelectedIndex = notes ? 1 : 0;
+        window.Tabs.SelectedItem = tab switch
+        {
+            WalkthroughTab.Notes => window.NotesTab,
+            WalkthroughTab.AdventureLog when vm.HasAdventureLog => window.LogTab,
+            _ => window.GuideTab,
+        };
         window.Activate();
     }
 
@@ -67,6 +76,7 @@ public partial class WalkthroughWindow : Window
         if (Vm is { } vm)
         {
             vm.PropertyChanged += OnVmChanged;
+            vm.GuideRequested += OnGuideRequested;
             Render(vm.Blocks);
         }
     }
@@ -75,7 +85,10 @@ public partial class WalkthroughWindow : Window
     {
         Vm?.RememberScroll(PageScroll.Offset.Y);
         if (Vm is { } vm)
+        {
             vm.PropertyChanged -= OnVmChanged;
+            vm.GuideRequested -= OnGuideRequested;
+        }
         _images.Cancel();
         base.OnClosing(e);
     }

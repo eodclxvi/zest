@@ -683,17 +683,24 @@
                                     IsVisible="{Binding DetailsGame.CanShowWalkthrough}">
                                 <StackPanel Spacing="8" DataContext="{Binding DetailsGame.Walkthrough}">
                                     <TextBlock Classes="title" FontSize="18" Text="Walkthrough &amp; notes" />
+                                    <!-- Ocarina of Time (Switch 2): what the save's Adventure Log says to do next -->
+                                    <TextBlock FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" IsVisible="{Binding HasAdventureLog}"
+                                               Text="{Binding AdventureLog.Headline, FallbackValue=''}" />
                                     <ProgressBar IsVisible="{Binding IsBusy}" IsIndeterminate="True" Height="6" />
                                     <TextBlock Text="{Binding GuideName}" FontWeight="Bold" TextWrapping="Wrap" IsVisible="{Binding HasGuide}" />
                                     <TextBlock Classes="muted" FontSize="12" Text="{Binding Message}" TextWrapping="Wrap" />
                                     <TextBlock Classes="muted" FontSize="12" Text="{Binding Summary}" TextWrapping="Wrap"
                                                IsVisible="{Binding Summary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                     <WrapPanel>
+                                        <Button Classes="primary" Margin="0,4,10,6" IsVisible="{Binding HasAdventureLog}" Click="OnOpenAdventureLog"
+                                                ToolTip.Tip="Your progress from the save: quests, what to do next, items, dungeons">
+                                            <TextBlock Text="Adventure log" />
+                                        </Button>
                                         <Button Classes="primary" Margin="0,4,10,6" IsVisible="{Binding HasGuide}" Click="OnOpenWalkthrough">
                                             <TextBlock Text="Open guide" />
                                         </Button>
                                         <Button Classes="outlined" Margin="0,4,10,6" Click="OnOpenWalkthroughNotes">
-                                            <TextBlock Text="My notes &amp; checklist" />
+                                            <TextBlock Text="{Binding NotesButton}" />
                                         </Button>
                                         <Button Classes="outlined" Margin="0,4,10,6" Command="{Binding ToggleCandidatesCommand}"
                                                 IsVisible="{Binding CanChangeGuide}" ToolTip.Tip="Pick another StrategyWiki guide (another version or remake)">
