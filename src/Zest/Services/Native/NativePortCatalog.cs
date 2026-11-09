@@ -94,6 +94,11 @@ public sealed record BuilderSetup
     public string? PreparedMarker { get; init; }
     /// <summary>What the first start does, for the status bar.</summary>
     public string? FirstStartNote { get; init; }
+    /// <summary>The built game's executable (relative to the game folder) that prepares every shader with no window when
+    /// started with <see cref="PrepareArgs"/>, reporting "@@stage/@@progress/@@done/@@error" lines; Zest runs it as the
+    /// install's last step so the first start doesn't do it. Null when the port has no such mode.</summary>
+    public string? PrepareExecutable { get; init; }
+    public IReadOnlyList<string> PrepareArgs { get; init; } = [];
 }
 
 /// <summary>
@@ -234,6 +239,10 @@ public static class NativePortCatalog
                 StageWeights = new Dictionary<string, double> { ["read"] = 6, ["lift"] = 12, ["compile"] = 77, ["finish"] = 5 },
                 PreparedMarker = "hookshot_prepared.bin",
                 FirstStartNote = "first start: preparing ~53,000 shaders before its window opens (about 4-7 minutes, only once)",
+                // host/hos_main.c: "--prepare-shaders" (a build's last step: no game) sets HOOKSHOT_PREPARE_ONLY and
+                // runs gpu/vk's prepare + predict + precompile, then saves the pipeline cache; exit 3 = no usable Vulkan
+                PrepareExecutable = "bin/hookshot",
+                PrepareArgs = ["--prepare-shaders"],
             },
         },
     ];
