@@ -5,9 +5,10 @@ namespace Zest.Services.GameData;
 public enum QuestState { NotStarted, InProgress, Complete }
 
 /// <summary>A quest from the game's own Adventure Log, as one save has it.</summary>
+/// <param name="GuideHints">Words to find the quest's chapter in the walkthrough ("Turffield"), when it has no fixed one.</param>
 public sealed record QuestProgress(
     string Id, string Name, bool Main, QuestState State, string Step, int StepIndex, int StepCount,
-    string Summary, string NextAction, bool BossBattle);
+    string Summary, string NextAction, bool BossBattle, IReadOnlyList<string>? GuideHints = null);
 
 public sealed record Collectible(string Key, string Name, bool Have);
 
@@ -298,4 +299,87 @@ public sealed class OotProgress
     /// <summary>The log's line breaks are the game's text box width: join them into paragraphs.</summary>
     private static string Clean(string? text) =>
         text is null ? "" : string.Join("\n\n", text.Split("\n\n").Select(p => string.Join(' ', p.Split('\n').Select(l => l.Trim())).Trim()));
+}
+
+/// <summary>The Adventure Log's reader for Ocarina of Time (Switch 2): saves in Lichii and Hookshot.</summary>
+public sealed class OotReader : IProgressReader
+{
+    private OotProgress? _data;
+    private readonly Dictionary<string, SlotCaption> _captions = [];
+
+    public string NoSaves => "No Ocarina of Time saves yet in Lichii or Hookshot.";
+
+    public string? Prepare()
+    {
+        if (_data is not null)
+            return null;
+        if (OotProgress.FindRomfs() is not { } romfs)
+            return "The Adventure Log reads its text from the game's files. Install the native version (Hookshot) " +
+                   "from the details page first; your saves can stay in Lichii.";
+        _data = OotProgress.Load(romfs);
+        return null;
+    }
+
+    public IReadOnlyList<string> WatchFolders() => [.. OotProgress.FindSources().Select(s => s.Folder)];
+
+    public IReadOnlyList<ProgressSlot> Slots()
+    {
+        var data = _data ?? throw new InvalidOperationException("Prepare first.");
+        _captions.Clear();
+        var slots = new List<ProgressSlot>();
+        foreach (var src in OotProgress.FindSources())
+        {
+            foreach (var folder in src.SlotFolders)
+            {
+                var c = data.ReadCaption(folder);
+                _captions[folder] = c;
+                slots.Add(new ProgressSlot(folder, src.Name,
+                    $"{(c.AutoSave ? "Autosave" : "Save")} {c.Index + 1} · {c.Location} · {c.Saved:ddd d MMM, HH:mm}", c.Saved ?? DateTime.MinValue));
+            }
+        }
+        // The same save copied between Lichii and Hookshot: list it once
+        return [.. slots
+            .GroupBy(s => (s.Label, Hash: Fingerprint(s.Id)))
+            .Select(g => g.Count() == 1 ? g.First() : g.First() with { Source = string.Join(" + ", g.Select(x => x.Source)) })
+            .OrderByDescending(s => s.Saved)];
+    }
+
+    private static string Fingerprint(string slotFolder)
+    {
+        try
+        {
+            return Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(File.ReadAllBytes(Path.Combine(slotFolder, "progress.sav"))));
+        }
+        catch (IOException)
+        {
+            return slotFolder;
+        }
+    }
+
+    public ProgressReport Read(ProgressSlot slot)
+    {
+        var data = _data ?? throw new InvalidOperationException("Prepare first.");
+        var p = data.ReadSlot(slot.Id);
+        var c = p.Caption;
+        var hearts = c.MaxLifeQuarters / 4;
+        var pieces = c.MaxLifeQuarters % 4;
+        return new ProgressReport(
+            Where: $"{c.Location} · {(c.AutoSave ? "autosave" : "saved")} {c.Saved:ddd d MMM, HH:mm} · {slot.Source}",
+            Stats: $"♥ {hearts}{(pieces > 0 ? $" + {pieces}/4" : "")} hearts   ·   {c.GoldTokens} of 100 Gold Skulltulas   ·   {c.Rupees} rupees",
+            Counts: $"{p.Quests.Count(q => q.Main && q.State == QuestState.Complete)} of {p.Quests.Count(q => q.Main)} main quests · " +
+                    $"{p.Songs.Count(s => s.Have)}/12 songs · {p.Stones.Count(s => s.Have)}/9 stones and medallions · " +
+                    $"{p.Places.Count(s => s.Have)}/{p.Places.Count} places",
+            Picture: c.Thumbnail,
+            Quests: p.Quests,
+            Groups:
+            [
+                new("Spiritual stones and medallions", p.Stones),
+                new("Songs", p.Songs),
+                new("Items", p.Items),
+                new("Equipment and upgrades", p.Equipment),
+                new("Places visited", p.Places),
+            ],
+            Dungeons: p.Dungeons,
+            Footer: "The Adventure Log text, item and place names come from your own copy of the game; Zest reads your saves and never writes them.");
+    }
 }

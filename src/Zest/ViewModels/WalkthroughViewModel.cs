@@ -3,6 +3,7 @@ using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Zest.Services;
+using Zest.Services.GameData;
 using Zest.Services.Walkthroughs;
 
 namespace Zest.ViewModels;
@@ -62,13 +63,13 @@ public partial class WalkthroughViewModel : ViewModelBase
         foreach (var item in _notes.Checklist)
             Checklist.Add(new CheckItemViewModel(this, item));
         Links = WalkthroughLinks.For(title, platform);
-        if (AdventureLogViewModel.Supports(title, platform))
-            AdventureLog = new AdventureLogViewModel(CanOpenQuestGuide, OpenQuestGuide);
+        if (AdventureLogViewModel.ReaderFor(title, platform) is { } reader)
+            AdventureLog = new AdventureLogViewModel(reader, CanOpenQuestGuide, OpenQuestGuide);
         UpdateSummary();
         _ready = true;
     }
 
-    /// <summary>Progress read from the game's saves (Ocarina of Time on Switch 2); it replaces the checklist.</summary>
+    /// <summary>Progress read from the game's saves (Ocarina of Time on Switch 2, the Pokémon games); it replaces the checklist.</summary>
     public AdventureLogViewModel? AdventureLog { get; }
 
     public bool HasAdventureLog => AdventureLog is not null;
@@ -109,17 +110,26 @@ public partial class WalkthroughViewModel : ViewModelBase
         ["SubEvent_GetIceArrow"] = ["Gerudo Training Grounds"],
     };
 
-    private ChapterViewModel? QuestChapter(string questId) =>
-        QuestChapters.GetValueOrDefault(questId) is { } names
-            ? names.Select(n => Chapters.FirstOrDefault(c => c.Chapter.Page.EndsWith("/" + n, StringComparison.Ordinal)))
-                .FirstOrDefault(c => c is not null)
-            : null;
-
-    private bool CanOpenQuestGuide(string questId) => QuestChapter(questId) is not null;
-
-    private void OpenQuestGuide(string questId)
+    /// <summary>The guide chapter for a quest: OoT's fixed ones, else the first chapter naming one of its hints ("Turffield").</summary>
+    private ChapterViewModel? QuestChapter(QuestProgress quest)
     {
-        if (QuestChapter(questId) is { } chapter)
+        if (QuestChapters.GetValueOrDefault(quest.Id) is { } names)
+            return names.Select(n => Chapters.FirstOrDefault(c => c.Chapter.Page.EndsWith("/" + n, StringComparison.Ordinal)))
+                .FirstOrDefault(c => c is not null);
+        foreach (var hint in quest.GuideHints ?? [])
+        {
+            if (Chapters.FirstOrDefault(c => c.Label.Contains(hint, StringComparison.OrdinalIgnoreCase)
+                                             || c.Chapter.Page.Split('/').Last().Contains(hint, StringComparison.OrdinalIgnoreCase)) is { } hit)
+                return hit;
+        }
+        return null;
+    }
+
+    private bool CanOpenQuestGuide(QuestProgress quest) => QuestChapter(quest) is not null;
+
+    private void OpenQuestGuide(QuestProgress quest)
+    {
+        if (QuestChapter(quest) is { } chapter)
         {
             GuideRequested?.Invoke();
             _ = OpenPageAsync(chapter.Chapter.Page, null);

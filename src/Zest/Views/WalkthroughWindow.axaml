@@ -127,7 +127,7 @@
                                                 <TextBlock FontSize="14" Text="{Binding Summary}" TextWrapping="Wrap" IsVisible="{Binding HasSummary}" />
                                                 <TextBlock FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" IsVisible="{Binding HasNextAction}"
                                                            Text="{Binding NextAction, StringFormat='Next: {0}'}" />
-                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" IsVisible="{Binding HasProgressBar}">
                                                     <ProgressBar Minimum="0" Maximum="1" Value="{Binding Fraction}" Height="6" VerticalAlignment="Center" />
                                                     <TextBlock Grid.Column="1" Classes="muted" FontSize="11" Text="{Binding StepText}" />
                                                 </Grid>
@@ -137,22 +137,27 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <TextBlock Classes="title" FontSize="18" Text="Collection" Margin="4,8,4,0" />
-                            <Border Classes="section">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Classes="muted" FontSize="12" FontWeight="Bold" Text="SPIRITUAL STONES AND MEDALLIONS" />
-                                    <ItemsControl ItemsSource="{Binding Stones}" ItemTemplate="{StaticResource ChipTemplate}" ItemsPanel="{StaticResource WrapPanelTemplate}" />
-                                    <TextBlock Classes="muted" FontSize="12" FontWeight="Bold" Text="SONGS" />
-                                    <ItemsControl ItemsSource="{Binding Songs}" ItemTemplate="{StaticResource ChipTemplate}" ItemsPanel="{StaticResource WrapPanelTemplate}" />
-                                    <TextBlock Classes="muted" FontSize="12" FontWeight="Bold" Text="ITEMS" />
-                                    <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource ChipTemplate}" ItemsPanel="{StaticResource WrapPanelTemplate}" />
-                                    <TextBlock Classes="muted" FontSize="12" FontWeight="Bold" Text="EQUIPMENT AND UPGRADES" />
-                                    <ItemsControl ItemsSource="{Binding Equipment}" ItemTemplate="{StaticResource ChipTemplate}" ItemsPanel="{StaticResource WrapPanelTemplate}" />
-                                </StackPanel>
-                            </Border>
+                            <!-- The tracker: stones, songs, badges, the party… one section per group -->
+                            <ItemsControl ItemsSource="{Binding Groups}" Margin="0,8,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Spacing="10" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:GroupViewModel">
+                                        <Border Classes="section">
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Classes="muted" FontSize="12" FontWeight="Bold" Text="{Binding Header}" />
+                                                <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource ChipTemplate}" ItemsPanel="{StaticResource WrapPanelTemplate}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
 
-                            <TextBlock Classes="title" FontSize="18" Text="Dungeons" Margin="4,8,4,0" />
-                            <Border Classes="section">
+                            <TextBlock Classes="title" FontSize="18" Text="Dungeons" Margin="4,8,4,0" IsVisible="{Binding HasDungeons}" />
+                            <Border Classes="section" IsVisible="{Binding HasDungeons}">
                                 <StackPanel Spacing="4">
                                     <Grid ColumnDefinitions="*,110,64,72,72,52">
                                         <TextBlock Classes="muted" FontSize="12" Text="Dungeon" />
@@ -179,12 +184,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <TextBlock Classes="title" FontSize="18" Text="Places visited" Margin="4,8,4,0" />
-                            <Border Classes="section">
-                                <ItemsControl ItemsSource="{Binding Places}" ItemTemplate="{StaticResource ChipTemplate}" ItemsPanel="{StaticResource WrapPanelTemplate}" />
-                            </Border>
-
-                            <Expander Header="Completed quests" HorizontalAlignment="Stretch" Margin="0,8,0,0">
+                            <Expander Header="Completed quests" HorizontalAlignment="Stretch" Margin="0,8,0,0" IsVisible="{Binding HasCompleted}">
                                 <ItemsControl ItemsSource="{Binding Completed}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -202,8 +202,7 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </Expander>
-                            <TextBlock Classes="muted" FontSize="11" Margin="4,4" TextWrapping="Wrap"
-                                       Text="The Adventure Log text, item and place names come from your own copy of the game; Zest reads your saves and never writes them." />
+                            <TextBlock Classes="muted" FontSize="11" Margin="4,4" TextWrapping="Wrap" Text="{Binding Footer}" />
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
