@@ -501,12 +501,17 @@ public partial class MainViewModel : ViewModelBase
         await RefreshAsync();
     }
 
+    /// <summary>A native port is about to start (the window puts its game files path on the clipboard for a
+    /// port whose first-run setup screen asks for it).</summary>
+    public event Action<NativePortViewModel>? NativeStarting;
+
     [RelayCommand]
     public async Task LaunchNativeAsync(GameViewModel? game)
     {
         game ??= DetailsGame ?? SelectedGame;
         if (game?.NativePort is not { CanPlay: true } native || game.IsRunning)
             return;
+        NativeStarting?.Invoke(native);
 
         game.IsRunning = true;
         IsGameRunning = ++_running > 0;
@@ -543,8 +548,17 @@ public partial class MainViewModel : ViewModelBase
         await RefreshAsync();
     }
 
+    /// <summary>Play: the game's native port when one is set up and ready (not mid-install), otherwise its emulator.</summary>
     [RelayCommand]
-    public async Task LaunchAsync(GameViewModel? game)
+    public Task LaunchAsync(GameViewModel? game)
+    {
+        game ??= SelectedGame;
+        return game?.PlaysNatively == true ? LaunchNativeAsync(game) : LaunchEmulatorAsync(game);
+    }
+
+    /// <summary>"Play in Eden/Lichii/…": the emulator even when a native port is ready.</summary>
+    [RelayCommand]
+    public async Task LaunchEmulatorAsync(GameViewModel? game)
     {
         game ??= SelectedGame;
         if (game is null || game.IsRunning)

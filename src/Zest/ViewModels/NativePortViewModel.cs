@@ -62,6 +62,16 @@ public partial class NativePortViewModel : ViewModelBase
 
     public bool IsIdle => !IsBusy;
 
+    /// <summary>Play on the game starts this port: set up, and not installing or updating right now.</summary>
+    public bool ReadyToPlay => CanPlay && IsIdle;
+
+    protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+        if (e.PropertyName is nameof(CanPlay) or nameof(IsIdle))
+            base.OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(nameof(ReadyToPlay)));
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanPlay), nameof(SetupText), nameof(GameFilesText))]
     public partial bool GameBuilt { get; set; }

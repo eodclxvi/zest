@@ -50,6 +50,7 @@ public partial class MainWindow : Window
         {
             vm.Gamepad = _gamepad;
             vm.PropertyChanged += OnVmPropertyChanged;
+            vm.NativeStarting += OnNativeStarting;
             vm.Games.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(() => LayoutCarousel(animate: false), DispatcherPriority.Loaded);
         }
     }
@@ -476,9 +477,9 @@ public partial class MainWindow : Window
     private void OnDetailsShowFile(object? sender, RoutedEventArgs e) => ShowFile(Vm.DetailsGame);
 
     // The port's first-run setup screen asks for the game files folder: have it on the clipboard.
-    private async void OnPlayNative(object? sender, RoutedEventArgs e)
+    private async void OnNativeStarting(NativePortViewModel native)
     {
-        if (Vm.DetailsGame?.NativePort is { HasGameFiles: true } native && Clipboard is { } clipboard)
+        if (native.HasGameFiles && Clipboard is { } clipboard)
             await clipboard.SetTextAsync(native.GameFilesPath);
     }
 

@@ -96,6 +96,9 @@ public partial class GameViewModel : ViewModelBase
 
     public bool HasNativePort => NativePort is not null;
 
+    /// <summary>Play starts the native port (set up, and not installing or updating right now).</summary>
+    public bool PlaysNatively => NativePort is { ReadyToPlay: true };
+
     /// <summary>A port of this game Zest can build on this PC ("Install native").</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSourcePort))]
