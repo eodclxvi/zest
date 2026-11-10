@@ -22,6 +22,7 @@ public static class GameLauncher
             psi.ArgumentList.Add(a.Replace("{rom}", game.Path));
         if (!hasPlaceholder)
             psi.ArgumentList.Add(game.Path);
+        GpuShaderCache.Apply(psi);
 
         var started = Stopwatch.StartNew();
         using var process = Process.Start(psi)
@@ -41,6 +42,7 @@ public static class GameLauncher
         };
         foreach (var a in port.Arguments)
             psi.ArgumentList.Add(a);
+        GpuShaderCache.Apply(psi);
 
         var log = AppPaths.ExpandHome(port.Log);
         StreamWriter? writer = null;

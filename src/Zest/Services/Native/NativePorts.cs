@@ -433,6 +433,7 @@ public static class NativePorts
         };
         foreach (var a in b.PrepareArgs)
             psi.ArgumentList.Add(a);
+        GpuShaderCache.Apply(psi);
         var exit = await RunLoggedAsync(psi, log, l =>
         {
             var space = l.IndexOf(' ');
@@ -518,6 +519,7 @@ public static class NativePorts
         // Without FUSE an AppImage can't mount itself; this makes it unpack and run instead of failing.
         if (!File.Exists("/usr/bin/fusermount3") && !File.Exists("/usr/bin/fusermount"))
             psi.Environment["APPIMAGE_EXTRACT_AND_RUN"] = "1";
+        GpuShaderCache.Apply(psi);
 
         var started = Stopwatch.StartNew();
         using var process = Process.Start(psi) ?? throw new InvalidOperationException($"Could not start {port.Name}.");
