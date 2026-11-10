@@ -356,6 +356,13 @@ public static class NativePorts
             throw new InvalidDataException(check is null ? $"{port.Name} couldn't check this file; see {Path.Combine(Root(port), "build.log")}."
                 : check.StartsWith("bad ", StringComparison.Ordinal) ? check[4..] : check);
 
+        var config = AppConfig.Load();
+        if (port.Id == "hookshot" && HookshotDlss.Wanted(config) && await HookshotDlss.ReleaseSupportsAsync(release.Tag, cancel))
+        {
+            progress.Report((0, "Fetching NVIDIA's DLSS SDK (you accepted its licence in Zest)…"));
+            await HookshotDlss.EnsureSdkAsync(release.Tag, log, cancel);
+        }
+
         var update = IsGameBuilt(port);
         string[] args = update
             ? ["--cli", "--update", GameFolder(port)]
@@ -476,6 +483,7 @@ public static class NativePorts
             psi.ArgumentList.Add(a);
         if (!File.Exists("/usr/bin/fusermount3") && !File.Exists("/usr/bin/fusermount"))
             psi.Environment["APPIMAGE_EXTRACT_AND_RUN"] = "1";
+        HookshotDlss.Apply(psi, AppConfig.Load());
         return RunLoggedAsync(psi, log, line, cancel);
     }
 

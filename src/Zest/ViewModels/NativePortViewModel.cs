@@ -73,7 +73,7 @@ public partial class NativePortViewModel : ViewModelBase
     }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanPlay), nameof(SetupText), nameof(GameFilesText))]
+    [NotifyPropertyChangedFor(nameof(CanPlay), nameof(SetupText), nameof(GameFilesText), nameof(HasGameSettings))]
     public partial bool GameBuilt { get; set; }
 
     private bool BuildsGame => Port.Setup is not null || Port.Extract is not null || Port.Builder is not null;
@@ -136,8 +136,9 @@ public partial class NativePortViewModel : ViewModelBase
 
             if (Port.Builder is not null)
             {
-                // The release builds the game from the .nup itself (or rebuilds the folder after an update)
-                if (changed || !GameBuilt)
+                // The release builds the game from the .nup itself (or rebuilds the folder after an update, or to add
+                // NVIDIA DLSS once the user opted in and the release can)
+                if (changed || !GameBuilt || await NeedsDlssBuildAsync())
                 {
                     changed = true;
                     var steps = new Progress<(double percent, string text)>(p => { Progress = p.percent; Message = p.text; });
@@ -234,6 +235,15 @@ public partial class NativePortViewModel : ViewModelBase
             Refresh();
         }
     }
+
+    /// <summary>Hookshot: the user wants DLSS, the release can build it, and the game folder doesn't have it yet.</summary>
+    private async Task<bool> NeedsDlssBuildAsync() =>
+        Port.Id == "hookshot" && Release is { } r && GameBuilt
+        && HookshotDlss.Wanted(AppConfig.Load()) && !HookshotDlss.GameHasDlss(NativePorts.GameFolder(Port))
+        && await HookshotDlss.ReleaseSupportsAsync(r.Tag, CancellationToken.None);
+
+    /// <summary>Hookshot's in-game settings, editable from Zest once the game is built.</summary>
+    public bool HasGameSettings => Port.Id == "hookshot" && GameBuilt;
 
     [RelayCommand]
     private void Cancel() => _work?.Cancel();
