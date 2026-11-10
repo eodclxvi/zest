@@ -504,7 +504,7 @@ public partial class WalkthroughViewModel : ViewModelBase
         var parts = new List<string>();
         if (Chapters.Count > 1)
             parts.Add($"{Chapters.Count(c => c.Done)} of {Chapters.Count} chapters done");
-        if (Checklist.Count > 0)
+        if (Checklist.Count > 0 && ShowChecklist)
             parts.Add($"checklist {Checklist.Count(c => c.Done)}/{Checklist.Count}");
         if (_notes.Notes.Length > 0)
             parts.Add("notes saved");

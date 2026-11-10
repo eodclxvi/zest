@@ -248,7 +248,8 @@
                                     <Button Classes="outlined" Command="{Binding NextCommand}" ToolTip.Tip="Next chapter (Alt+Right)">
                                         <TextBlock Text="Next ›" />
                                     </Button>
-                                    <Button Classes="outlined" Command="{Binding AddPageToChecklistCommand}" ToolTip.Tip="Add this page to your checklist">
+                                    <Button Classes="outlined" Command="{Binding AddPageToChecklistCommand}" ToolTip.Tip="Add this page to your checklist"
+                                            IsVisible="{Binding ShowChecklist}">
                                         <TextBlock Text="+ Checklist" />
                                     </Button>
                                     <Button Classes="outlined" Command="{Binding OpenOnWikiCommand}" ToolTip.Tip="Open this page on StrategyWiki">
