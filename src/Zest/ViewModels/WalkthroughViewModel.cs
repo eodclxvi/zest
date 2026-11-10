@@ -55,9 +55,12 @@ public partial class WalkthroughViewModel : ViewModelBase
     private bool _found;
     private readonly bool _ready;
 
+    private readonly bool _remake;
+
     public WalkthroughViewModel(string title, Models.Platform platform)
     {
         _title = title;
+        _remake = OotRemakeGuide.Supports(title, platform);
         _notes = GameNotes.Load(title);
         Notes = _notes.Notes;
         foreach (var item in _notes.Checklist)
@@ -138,11 +141,16 @@ public partial class WalkthroughViewModel : ViewModelBase
 
     public string GameTitle => _title;
     public IReadOnlyList<WalkthroughLink> Links { get; }
+
+    public bool HasLinks => Links.Count > 0;
     public ObservableCollection<string> Candidates { get; } = [];
     public ObservableCollection<ChapterViewModel> Chapters { get; } = [];
     public ObservableCollection<CheckItemViewModel> Checklist { get; } = [];
 
-    public string Credit => $"Guide text by StrategyWiki contributors, {StrategyWiki.Licence}. Zest shows it as published; edits belong on StrategyWiki.";
+    public string Credit => _guide?.Root == OotRemakeGuide.Root
+        ? $"Walkthrough text by StrategyWiki contributors ({StrategyWiki.Licence}), renamed for Switch 2. Remake changes from Zelda Wiki ({ZeldaWiki.Licence}); " +
+          "pictures © Nintendo via Zelda Wiki; objectives from your game's Adventure Log; young Link notes by Zest."
+        : $"Guide text by StrategyWiki contributors, {StrategyWiki.Licence}. Zest shows it as published; edits belong on StrategyWiki.";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasGuide))]
@@ -174,10 +182,13 @@ public partial class WalkthroughViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(PageTitle), nameof(PageUrl))]
     public partial string? CurrentPage { get; set; }
 
-    public string PageTitle => CurrentPage is null ? "" : CurrentPage == _guide?.Root ? "Overview"
+    public string PageTitle => CurrentPage is null ? "" : CurrentPage == _guide?.Root ? Chapters.FirstOrDefault()?.Label ?? "Overview"
         : Chapters.FirstOrDefault(c => c.Chapter.Page == CurrentPage)?.Label ?? CurrentPage.Split('/').Last();
 
-    public string? PageUrl => CurrentPage is null ? null : StrategyWiki.PageUrl(CurrentPage);
+    public string? PageUrl => CurrentPage is null ? null
+        : OotRemakeGuide.IsPage(CurrentPage)
+            ? OotRemakeGuide.OriginalPage(CurrentPage) is { } original ? StrategyWiki.PageUrl(original) : ZeldaWiki.PageUrl("The Legend of Zelda: Ocarina of Time (Nintendo Switch 2)")
+            : StrategyWiki.PageUrl(CurrentPage);
 
     [ObservableProperty]
     public partial IReadOnlyList<Block> Blocks { get; set; } = [];
@@ -222,10 +233,18 @@ public partial class WalkthroughViewModel : ViewModelBase
         Message = "Looking for a guide on StrategyWiki…";
         try
         {
-            var candidates = await StrategyWiki.FindGuidesAsync(_title, CancellationToken.None);
+            var candidates = (await StrategyWiki.FindGuidesAsync(_title, CancellationToken.None)).ToList();
+            if (_remake)
+                candidates.Insert(0, OotRemakeGuide.Root);
             Candidates.Clear();
             foreach (var c in candidates)
                 Candidates.Add(c);
+            // The Switch 2 guide replaces the original's once (a choice made before it existed doesn't count)
+            if (_remake && !_notes.RemakeGuideOffered)
+            {
+                _notes.RemakeGuideOffered = true;
+                _notes.GuideChosen = false;
+            }
             var guide = _notes.GuideChosen && _notes.Guide is not null ? _notes.Guide : candidates.FirstOrDefault() ?? _notes.Guide;
             if (guide is null)
             {
@@ -254,8 +273,11 @@ public partial class WalkthroughViewModel : ViewModelBase
 
     private async Task UseGuideAsync(string root, bool chosen)
     {
-        var guide = await StrategyWiki.GuideAsync(root, CancellationToken.None);
+        var guide = root == OotRemakeGuide.Root
+            ? await OotRemakeGuide.GuideAsync(CancellationToken.None)
+            : await StrategyWiki.GuideAsync(root, CancellationToken.None);
         _guide = guide;
+        OnPropertyChanged(nameof(Credit));
         if (_notes.Guide != root)
         {
             _notes.Guide = root;
@@ -272,7 +294,9 @@ public partial class WalkthroughViewModel : ViewModelBase
             group = c.Group;
         }
         GuideName = root;
-        Message = guide.Chapters.Count > 1 ? $"StrategyWiki guide, {guide.Chapters.Count} chapters." : "StrategyWiki has a page for this game (no chapters).";
+        Message = root == OotRemakeGuide.Root
+            ? $"Zest's Switch 2 guide, {guide.Chapters.Count} chapters: StrategyWiki's walkthrough with the remake's names, pictures, changes and your Adventure Log."
+            : guide.Chapters.Count > 1 ? $"StrategyWiki guide, {guide.Chapters.Count} chapters." : "StrategyWiki has a page for this game (no chapters).";
         UpdateSummary();
     }
 
@@ -325,7 +349,9 @@ public partial class WalkthroughViewModel : ViewModelBase
         PageError = "";
         try
         {
-            var (title, blocks) = await StrategyWiki.PageAsync(page, load.Token);
+            var (title, blocks) = OotRemakeGuide.IsPage(page)
+                ? await OotRemakeGuide.PageAsync(page, load.Token)
+                : await StrategyWiki.PageAsync(page, load.Token);
             if (load.IsCancellationRequested)
                 return;
             PendingAnchor = anchor;
@@ -367,6 +393,13 @@ public partial class WalkthroughViewModel : ViewModelBase
             if (_guide is { } g && (target.page == g.Root || target.page.StartsWith(g.Root + "/", StringComparison.Ordinal)))
             {
                 _ = OpenPageAsync(target.page, target.anchor);
+                return;
+            }
+            // In the Switch 2 guide, the original's chapters open as this guide's chapters
+            if (_guide?.Root == OotRemakeGuide.Root && OotRemakeGuide.MapLink(target.page) is { } mapped
+                && Chapters.Any(c => c.Chapter.Page == mapped))
+            {
+                _ = OpenPageAsync(mapped, target.anchor);
                 return;
             }
             OpenUrl(StrategyWiki.PageUrl(target.page) + (target.anchor is null ? "" : "#" + Uri.EscapeDataString(target.anchor)));
@@ -490,27 +523,14 @@ public partial class WalkthroughViewModel : ViewModelBase
 /// <summary>Other places with guides for a game, by series; they open in the browser.</summary>
 public static class WalkthroughLinks
 {
-    /// <summary>Guides for a particular release, by platform and title key (LibraryScanner.TitleKey).</summary>
-    private static readonly Dictionary<(Models.Platform, string), WalkthroughLink[]> Remakes = new()
-    {
-        // Ocarina of Time on Switch 2 (2026; Hookshot's 0400486024DEC000): the remake's changes aren't in the N64 guide
-        [(Models.Platform.Switch2, LibraryScanner.TitleKey("The Legend of Zelda: Ocarina of Time"))] =
-        [
-            new("Zelda Central (Switch 2, 100%)", "https://zeldacentral.com/games/ocarina-of-time-remake/"),
-            new("Nintendo Life (Switch 2)", "https://www.nintendolife.com/guides/zelda-ocarina-of-time-walkthrough-switch-2-remake"),
-            new("RespecD (Switch 2 changes)", "https://www.respec.net/guide/276-the-legend-zelda-ocarina-time-remake-walkthrough-100-completion-guide-with-all-switch-2-changes"),
-            new("Final Boss (dungeon index)", "https://finalboss.io/zelda-oot-switch-2-walkthrough-guides"),
-        ],
-    };
-
     public static IReadOnlyList<WalkthroughLink> For(string title, Models.Platform platform)
     {
+        // Ocarina of Time on Switch 2 has Zest's own guide (sources credited in it): no browser links to clutter the card
+        if (OotRemakeGuide.Supports(title, platform))
+            return [];
         var name = StrategyWiki.CleanTitle(title);
         var q = Uri.EscapeDataString(name);
         var links = new List<WalkthroughLink>();
-        // Guides written for one release of a game, first: StrategyWiki only covers the older versions of these
-        if (Remakes.TryGetValue((platform, LibraryScanner.TitleKey(name)), out var remake))
-            links.AddRange(remake);
         if (name.Contains("Zelda", StringComparison.OrdinalIgnoreCase))
         {
             links.Add(new("Zelda Dungeon", $"https://www.zeldadungeon.net/?s={q}+walkthrough"));

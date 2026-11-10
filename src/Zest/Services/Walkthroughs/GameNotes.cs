@@ -20,6 +20,8 @@ public sealed class GameNotes
     public string? Guide { get; set; }
     /// <summary>The user picked <see cref="Guide"/> themselves: don't replace it with the search's best match.</summary>
     public bool GuideChosen { get; set; }
+    /// <summary>Zest has switched this game to its Switch 2 guide once (Ocarina of Time); later choices stick.</summary>
+    public bool RemakeGuideOffered { get; set; }
     public string? Page { get; set; }
     public double Scroll { get; set; }
     public HashSet<string> DonePages { get; set; } = [];

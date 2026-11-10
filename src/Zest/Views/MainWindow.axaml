@@ -715,8 +715,8 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                    <TextBlock Classes="muted" FontSize="12" Text="Other guides (open in the browser):" />
-                                    <ItemsControl ItemsSource="{Binding Links}">
+                                    <TextBlock Classes="muted" FontSize="12" Text="Other guides (open in the browser):" IsVisible="{Binding HasLinks}" />
+                                    <ItemsControl ItemsSource="{Binding Links}" IsVisible="{Binding HasLinks}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <WrapPanel />

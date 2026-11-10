@@ -28,10 +28,15 @@ public static partial class HtmlBlocks
         "mw-editsection", "reference", "toc", "t_subtoc", "mw-cite-backlink", "navbox", "metadata",
     ];
 
+    /// <summary>The site of the page being parsed (parsing runs on worker threads, one page each).</summary>
+    private static readonly ThreadLocal<string?> Site = new();
+
     private static readonly HashSet<string> SkipTags = ["STYLE", "SCRIPT", "BUTTON", "LINK", "NOSCRIPT", "SUP"];
 
-    public static IReadOnlyList<Block> Parse(string html)
+    /// <param name="site">Where relative image and link paths point ("https://zeldawiki.wiki"); StrategyWiki by default.</param>
+    public static IReadOnlyList<Block> Parse(string html, string site = "https://strategywiki.org")
     {
+        Site.Value = site;
         var doc = new HtmlParser().ParseDocument("<body>" + html + "</body>");
         var w = new Walker();
         w.Blocks(doc.Body!, 0);
@@ -50,7 +55,7 @@ public static partial class HtmlBlocks
         var src = img.GetAttribute("src");
         if (string.IsNullOrEmpty(src) || src.StartsWith("data:"))
             return null;
-        return src.StartsWith("//") ? "https:" + src : src.StartsWith('/') ? "https://strategywiki.org" + src : src;
+        return src.StartsWith("//") ? "https:" + src : src.StartsWith('/') ? (Site.Value ?? "https://strategywiki.org") + src : src;
     }
 
     /// <summary>A button or key icon in the text ("press the [C-Down] button"): its alt text in brackets.</summary>
@@ -61,6 +66,10 @@ public static partial class HtmlBlocks
             return null;
         return "[" + alt.Trim() + "]";
     }
+
+    /// <summary>Another wiki's "/wiki/X" links point at that wiki (StrategyWiki's stay relative: the reader follows them).</summary>
+    private static string Absolute(string href) =>
+        Site.Value is { } site && site != "https://strategywiki.org" && href.StartsWith('/') && !href.StartsWith("//") ? site + href : href;
 
     private static int Int(IElement e, string attribute) => int.TryParse(e.GetAttribute(attribute), out var v) ? v : 0;
 
@@ -292,7 +301,7 @@ public static partial class HtmlBlocks
                 case IElement e:
                     var b = bold || e.TagName is "B" or "STRONG" or "TH" or "DT";
                     var i = italic || e.TagName is "I" or "EM" or "CITE";
-                    var h = e.TagName == "A" && e.GetAttribute("href") is { Length: > 0 } link ? link : href;
+                    var h = e.TagName == "A" && e.GetAttribute("href") is { Length: > 0 } link ? Absolute(link) : href;
                     InlineChildren(e, spans, b, i, h);
                     if (e.TagName is "P" or "DIV" or "LI")
                         spans.Add(new TextSpan("\n"));

@@ -183,6 +183,22 @@ public sealed class OotProgress
             c.Int("CaptionData.MaxLife"), c.Int("CaptionData.GoldToken"), c.Int("CaptionData.CurrentRupee"));
     }
 
+    /// <summary>A quest's Adventure Log in order: each step that has its own entry, with its "next" line and summary.</summary>
+    public (string Name, IReadOnlyList<(string Step, string Next, string Summary)> Steps)? QuestLog(string id)
+    {
+        var c = _challenges.FirstOrDefault(x => x.Id == id);
+        if (c is null || !_log.TryGetValue(id, out var text))
+            return null;
+        var steps = c.Steps
+            .Where(st => text.ContainsKey(st + "_NextAction") || (st == "Complete" && text.ContainsKey(st)))
+            .Select(st => (st, Clean(text.GetValueOrDefault(st + "_NextAction")), Clean(text.GetValueOrDefault(st))))
+            .ToList();
+        return (Clean(text.GetValueOrDefault("Name")) is { Length: > 0 } n ? n : Spaced(id), steps);
+    }
+
+    /// <summary>The steps of a quest in order (from "Ready" to "Complete").</summary>
+    public IReadOnlyList<string> QuestSteps(string id) => _challenges.FirstOrDefault(x => x.Id == id)?.Steps ?? [];
+
     public string PlaceName(string id) => _places.GetValueOrDefault(id) is { Length: > 0 } n ? n : Spaced(id);
 
     private string ItemName(string key) => _items.GetValueOrDefault(key + "_Name") is { Length: > 0 } n ? n.Trim() : Spaced(key.Split('_').Last());
