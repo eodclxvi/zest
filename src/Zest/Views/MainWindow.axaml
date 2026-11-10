@@ -527,6 +527,14 @@
                                         <TextBlock Text="Controls" />
                                     </StackPanel>
                                 </Button>
+                                <Button Classes="outlined" Margin="0,0,10,10" Click="OnOpenHookshotSettings"
+                                        IsVisible="{Binding DetailsGame.NativePort.HasGameSettings, FallbackValue=False}"
+                                        ToolTip.Tip="Hookshot's graphics, gameplay and control settings, and NVIDIA DLSS">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconSettings}" Width="16" Height="16" />
+                                        <TextBlock Text="Game settings" />
+                                    </StackPanel>
+                                </Button>
                                 <Button Classes="outlined" Margin="0,0,10,10" Click="OnDetailsShowFile">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <PathIcon Data="{StaticResource IconFolder}" Width="16" Height="16" />

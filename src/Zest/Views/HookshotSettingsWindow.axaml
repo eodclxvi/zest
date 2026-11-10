@@ -1,0 +1,104 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Zest.ViewModels"
+        xmlns:native="using:Zest.Services.Native"
+        x:Class="Zest.Views.HookshotSettingsWindow"
+        x:DataType="vm:HookshotSettingsViewModel"
+        Icon="/Assets/zest.png"
+        Width="860" Height="860" MinWidth="560" MinHeight="420"
+        Background="{DynamicResource BackgroundBrush}"
+        Title="Hookshot settings">
+
+    <Window.Styles>
+        <Style Selector="Border.section">
+            <Setter Property="Background" Value="{DynamicResource ContainerBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineVariantBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Padding" Value="16,12" />
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="16" />
+        </Style>
+    </Window.Styles>
+
+    <Window.Resources>
+        <!-- One setting: its name and choices on a line, what it does under them -->
+        <DataTemplate x:Key="RowTemplate" x:DataType="vm:HookshotSettingRow">
+            <StackPanel Spacing="4" Margin="0,0,0,14">
+                <Grid ColumnDefinitions="*,260" ColumnSpacing="12">
+                    <TextBlock FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Text="{Binding Label}" />
+                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Choices}" SelectedItem="{Binding Selected}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="native:HookshotChoice">
+                                <TextBlock Text="{Binding Label}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
+                <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" Text="{Binding Help}" />
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+
+    <DockPanel Margin="14">
+        <TextBlock DockPanel.Dock="Bottom" Classes="muted" FontSize="12" Margin="4,10,4,0" TextWrapping="Wrap" Text="{Binding Message}" />
+        <TabControl>
+            <TabItem Header="Graphics">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="12" Margin="0,8,8,8">
+                        <Border Classes="section">
+                            <ItemsControl ItemsSource="{Binding Graphics}" ItemTemplate="{StaticResource RowTemplate}" />
+                        </Border>
+
+                        <!-- NVIDIA DLSS: NVIDIA's SDK, under NVIDIA's licence, only when the user accepts it -->
+                        <Border Classes="section">
+                            <StackPanel Spacing="10">
+                                <TextBlock Classes="title" FontSize="17" Text="NVIDIA DLSS" />
+                                <TextBlock FontSize="13" TextWrapping="Wrap" Text="{Binding DlssStatus}" />
+                                <CheckBox IsChecked="{Binding DlssWanted}">
+                                    <TextBlock TextWrapping="Wrap" Text="Build Hookshot with NVIDIA DLSS (downloads NVIDIA's SDK under NVIDIA's licence)" />
+                                </CheckBox>
+                                <Border IsVisible="{Binding ShowLicence}" Background="{DynamicResource ContainerHighBrush}" CornerRadius="14" Padding="14,12">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock FontSize="13" TextWrapping="Wrap"
+                                                   Text="DLSS needs NVIDIA's DLSS SDK. It belongs to NVIDIA and comes under NVIDIA's own licence: Hookshot and Zest never include it. If you accept that licence, Zest fetches the SDK with Hookshot's script (which checks every file) and builds your game with it. A game folder built with it must not be shared." />
+                                        <WrapPanel>
+                                            <Button Classes="outlined" Margin="0,0,8,0" Command="{Binding OpenLicenceCommand}">
+                                                <TextBlock Text="Read NVIDIA's licence" />
+                                            </Button>
+                                            <Button Classes="primary" Margin="0,0,8,0" Command="{Binding AcceptLicenceCommand}">
+                                                <TextBlock Text="I accept NVIDIA's licence" />
+                                            </Button>
+                                            <Button Classes="outlined" Command="{Binding DeclineLicenceCommand}">
+                                                <TextBlock Text="Cancel" />
+                                            </Button>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Gameplay">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                    <Border Classes="section" Margin="0,8,8,8">
+                        <ItemsControl ItemsSource="{Binding Gameplay}" ItemTemplate="{StaticResource RowTemplate}" />
+                    </Border>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Controls">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="12" Margin="0,8,8,8">
+                        <Border Classes="section">
+                            <ItemsControl ItemsSource="{Binding Controls}" ItemTemplate="{StaticResource RowTemplate}" />
+                        </Border>
+                        <TextBlock Classes="muted" FontSize="12" Margin="4,0" TextWrapping="Wrap"
+                                   Text="Button bindings and the layout preset are in the game's own menu: Insert (or Home on a controller) → Controls." />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

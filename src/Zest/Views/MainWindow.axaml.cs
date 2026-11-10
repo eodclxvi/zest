@@ -504,6 +504,12 @@ public partial class MainWindow : Window
             WalkthroughWindow.Show(game.Walkthrough, WalkthroughTab.Guide);
     }
 
+    private void OnOpenHookshotSettings(object? sender, RoutedEventArgs e)
+    {
+        if (Vm.DetailsGame?.NativePort is { HasGameSettings: true } native)
+            HookshotSettingsWindow.Show(new HookshotSettingsViewModel(native.Port, Vm.Config));
+    }
+
     private void OnOpenAdventureLog(object? sender, RoutedEventArgs e)
     {
         if (Vm.DetailsGame is { } game)

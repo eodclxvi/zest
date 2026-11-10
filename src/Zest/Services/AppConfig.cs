@@ -49,6 +49,12 @@ public sealed class AppConfig
     /// <summary>Before a Lichii game starts, merge its Lichii Shader Sync pack when the pack has grown.</summary>
     public bool UpdateShaderCaches { get; set; } = true;
 
+    /// <summary>Build Hookshot with NVIDIA's DLSS SDK (Hookshot settings). Only acted on with the licence accepted.</summary>
+    public bool HookshotDlss { get; set; }
+
+    /// <summary>When the user accepted NVIDIA's DLSS SDK licence in Zest (null: not accepted).</summary>
+    public DateTime? NvidiaDlssLicenceAccepted { get; set; }
+
     /// <summary>Optional SteamGridDB API key (steamgriddb.com, Preferences → API): adds its covers to "Find artwork".</summary>
     public string SteamGridDbKey { get; set; } = "";
 
